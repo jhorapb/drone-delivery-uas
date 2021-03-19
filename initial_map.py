@@ -8,7 +8,13 @@ n_data_points = 4
 x_map = [0, 0, 140, 140, 163, 163, 428, 428, 450, 450, 715, 715, 738, 738, 1002, 1002, 1025, 1025, 1162, 1162, 962, 962, 200, 200, 0]
 y_map = [0,	770, 770, 757, 757,	770, 770, 757, 757,	770, 770, 757, 757, 770, 770, 757, 757, 770, 770, 0, 0, 570, 570, 0, 0]
 map_coords = [(x_value, y_map[i]) for i, x_value in enumerate(x_map)]
-grid_size = 5
+# Maybe I have to replace 200 with 140? The 630 is because it's 140 less than 770
+A = [(0,0), (0, 200), (200, 0), (200, 200)]
+B = [(0, 630),(0, 770), (200, 630), (200, 770)]
+C = [(962, 630),(962, 770), (1162, 630), (1162, 770)]
+D = [(962, 0),(962, 140), (1162, 0), (1162, 140)]
+sectors = [A, B, C, D]
+grid_size = 10
 print(map_coords)
 
 
@@ -56,6 +62,31 @@ if __name__ == '__main__':
                 # print(occupied_spaces)
                 if j>=occupied_spaces[0] and j<=occupied_spaces[1]:
                     occupancy_grid[j, i]=100
+
+    ## Colour the sectors
+    print(max(i[0] for i in A))
+    color_section = 20
+    for j in range(coord2cell(y_size)):
+        for i in range(coord2cell(x_size)):
+            for sector in sectors:
+                color_section += color_section
+                max_x_sector = coord2cell(max(i[0] for i in sector))
+                min_x_sector = coord2cell(min(i[0] for i in sector))
+                max_y_sector = coord2cell(max(i[1] for i in sector))
+                min_y_sector = coord2cell(min(i[1] for i in sector))
+                if i>=min_x_sector and i<=max_x_sector and j>=min_y_sector and j<=max_y_sector and occupancy_grid[j, i]==100:
+                    occupancy_grid[j, i] = 50
+
+    ## Colour the road channels
+
+    #if in sectionAB or sectionCD:
+    #   direction = ydir
+    #   if RHT:
+    #       for j in range(coord2cell(y_size)):
+    #           for i in range(coord2cell(x_size)):
+    #               if not(i>=min_x_channel and i<=max_x_channel) and occupancy_grid[j, i]==100:
+    #                   occupancy_grid[j, i]=50
+    #else direction x
 
     #occupancy_grid=np.flip(occupancy_grid,0)
     #print(occupancy_grid)
