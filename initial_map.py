@@ -10,12 +10,13 @@ y_map = [0,	770, 770, 757, 757,	770, 770, 757, 757,	770, 770, 757, 757, 770, 770
 map_coords = [(x_value, y_map[i]) for i, x_value in enumerate(x_map)]
 # Maybe I have to replace 200 with 140? The 630 is because it's 140 less than 770
 A = [(0,0), (0, 200), (200, 0), (200, 200)]
-B = [(0, 630),(0, 770), (200, 630), (200, 770)]
-C = [(962, 630),(962, 770), (1162, 630), (1162, 770)]
-D = [(962, 0),(962, 140), (1162, 0), (1162, 140)]
+B = [(0, 570),(0, 770), (200, 570), (200, 770)]
+C = [(962, 570),(962, 770), (1162, 570), (1162, 770)]
+D = [(962, 0),(962, 200), (1162, 0), (1162, 200)]
 sectors = [A, B, C, D]
 grid_size = 10
 print(map_coords)
+C_Clockwise = False
 
 
 def coord2cell(coord):
@@ -66,22 +67,52 @@ if __name__ == '__main__':
     ## Colour the sectors
     print(max(i[0] for i in A))
     color_section = 20
+
     for j in range(coord2cell(y_size)):
         for i in range(coord2cell(x_size)):
             for sector in sectors:
                 color_section += color_section
-                max_x_sector = coord2cell(max(i[0] for i in sector))
-                min_x_sector = coord2cell(min(i[0] for i in sector))
-                max_y_sector = coord2cell(max(i[1] for i in sector))
-                min_y_sector = coord2cell(min(i[1] for i in sector))
-                if i>=min_x_sector and i<=max_x_sector and j>=min_y_sector and j<=max_y_sector and occupancy_grid[j, i]==100:
+                max_x_sector = coord2cell(max(k[0] for k in sector))
+                min_x_sector = coord2cell(min(k[0] for k in sector))
+                max_y_sector = coord2cell(max(k[1] for k in sector))
+                min_y_sector = coord2cell(min(k[1] for k in sector))
+                if i>=min_x_sector and i<max_x_sector and j>=min_y_sector and j<=max_y_sector and occupancy_grid[j, i]==100:
                     occupancy_grid[j, i] = 50
 
     ## Colour the road channels
+    for j in range(coord2cell(y_size)):
+        for i in range(coord2cell(x_size)):
+            # Section AB
+            if i>=coord2cell(A[0][0]) and i<=coord2cell(A[2][0]) and j>=coord2cell(A[1][1]) and j<=coord2cell(B[0][1]) and occupancy_grid[j, i]==100:
+                occupancy_grid[j, i] = 10
+                if C_Clockwise:
+                    if i>=coord2cell(A[2][0])/2 and i<=coord2cell(A[2][0]) and j>=coord2cell(A[1][1]) and j<=coord2cell(B[0][1]) and occupancy_grid[j, i]==10:
+                        occupancy_grid[j, i] = 0
+                else:
+                    if i>=coord2cell(A[0][0]) and i<=coord2cell(A[2][0])/2 and j>=coord2cell(A[1][1]) and j<=coord2cell(B[0][1]) and occupancy_grid[j, i]==10:
+                        occupancy_grid[j, i] = 0
+            # Section BC
+            if i>=coord2cell(B[2][0]) and i<=coord2cell(C[0][0]) and j>=coord2cell(B[2][1]) and j<=coord2cell(B[3][1]) and occupancy_grid[j, i]==100:
+                occupancy_grid[j, i] = 20
+                if C_Clockwise:
+                    if i>=coord2cell(B[2][0]) and i<=coord2cell(C[0][0]) and j>=coord2cell(B[2][1]) and j<=(coord2cell(B[2][1])+(coord2cell(B[3][1])-coord2cell(B[2][1]))/2) and occupancy_grid[j, i]==20:
+                        occupancy_grid[j, i] = 0
+                else:
+                    if i>=coord2cell(B[2][0]) and i<=coord2cell(C[0][0]) and j>=(coord2cell(B[2][1])+(coord2cell(B[3][1])-coord2cell(B[2][1]))/2) and j<=coord2cell(B[3][1]) and occupancy_grid[j, i]==20:
+                        occupancy_grid[j, i] = 0
+            # Section CD
+            if i>=coord2cell(C[0][0]) and i<=coord2cell(C[2][0]) and j>=coord2cell(D[1][1]) and j<=coord2cell(C[0][1]) and occupancy_grid[j, i]==100:
+                occupancy_grid[j, i] = 30
+                if C_Clockwise:
+                    if i>=coord2cell(C[0][0]) and i<=(coord2cell(C[0][0])+(coord2cell(C[2][0])-coord2cell(C[0][0]))/2) and j>=coord2cell(D[1][1]) and j<=coord2cell(C[0][1]) and occupancy_grid[j, i]==30:
+                        occupancy_grid[j, i] = 0
+                else:
+                    if i>=(coord2cell(C[0][0])+(coord2cell(C[2][0])-coord2cell(C[0][0]))/2) and i<=coord2cell(C[2][0]) and j>=coord2cell(D[1][1]) and j<=coord2cell(C[0][1]) and occupancy_grid[j, i]==30:
+                        occupancy_grid[j, i] = 0
 
     #if in sectionAB or sectionCD:
     #   direction = ydir
-    #   if RHT:
+    #   if C_Clockwise:
     #       for j in range(coord2cell(y_size)):
     #           for i in range(coord2cell(x_size)):
     #               if not(i>=min_x_channel and i<=max_x_channel) and occupancy_grid[j, i]==100:
@@ -97,3 +128,10 @@ if __name__ == '__main__':
     plt.title("Drone map")
     plt.gca().invert_yaxis()
     plt.show()
+
+
+
+
+
+
+
