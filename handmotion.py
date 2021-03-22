@@ -56,15 +56,13 @@ if __name__ == '__main__':
             # Define a multirange object 'multi-ranger'
             with Multiranger(scf) as multi_ranger:
                 
-                # Define a Boolean that goes to False 
-                # if the user put his hand close to thye upwards pointing ranging sensor
+                # Define a Boolean that goes to False
+                # if the user put his hand close to the upwards pointing ranging sensor
                 keep_flying = True
 
-                # Continue performing the loop while 'keep_flying' Booelan is True    
+                # Continue performing the loop while 'keep_flying' Booelan is True
                 while keep_flying:
-                    print('right', multi_ranger.right)
-                    print('left', multi_ranger.left)
-
+                    
                     # Define speed increment
                     VELOCITY = 0.5
                     

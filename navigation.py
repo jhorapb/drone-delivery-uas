@@ -19,8 +19,8 @@ RHT = 0 # Going
 LHT = 1 # Returning
 TRAFFIC_TYPE = RHT
 # Define speed increment
-VELOCITY = 0.5
-TOTAL_WIDTH = 0.6
+VELOCITY = 0.2 # m/s
+TOTAL_WIDTH = 2
 DISTANCE_TO_WALL = TOTAL_WIDTH / 4
 OTHER_TRAFFIC_DISTANCE = 0
 # STATES = {}
@@ -29,7 +29,7 @@ OTHER_TRAFFIC_DISTANCE = 0
 # It return a Boolean True is so, and False if not
 def is_close_to_obstacle(range):
     MAX_LIMIT = 0.9  # m
-    MIN_LIMIT = 0.5 # m
+    MIN_LIMIT = 0.7 # m
     if range is None:
         return False
     else:
@@ -46,7 +46,7 @@ def perform_mision():
     with SyncCrazyflie(URI) as scf:
         
         # Create a motion commandor (tools that let's you change the motion of the UAS) for 'scf'
-        with MotionCommander(scf) as motion_commander:
+        with MotionCommander(scf, 0.2) as motion_commander:
             # -------------------------------------
             # Motion #1: Take off
             # -------------------------------------
@@ -61,19 +61,18 @@ def perform_mision():
             # Define a multirange object 'multi-ranger'
             with Multiranger(scf) as multi_ranger:
                 
-                # Define a Boolean that goes to False 
-                # if the user put his object close to thye upwards pointing ranging sensor
+                # Define a Boolean that goes to False to stop the mission
                 keep_flying = True
 
                 right_traffic = TRAFFIC_TYPE == RHT
                 if right_traffic:
                     print('what?', multi_ranger.right)
                     traffic_flow_multi_ranger = multi_ranger.right
-                    vel_increment = -VELOCITY
+                    vel_increment_y = VELOCITY
                     OTHER_TRAFFIC_DISTANCE = 0
                 else:
                     traffic_flow_multi_ranger = multi_ranger.left
-                    vel_increment = VELOCITY
+                    vel_increment_y = VELOCITY
                     OTHER_TRAFFIC_DISTANCE = DISTANCE_TO_WALL * 2
 
                 print('mranger', traffic_flow_multi_ranger)
@@ -81,19 +80,24 @@ def perform_mision():
                 TOTAL_DISTANCE = DISTANCE_TO_WALL + OTHER_TRAFFIC_DISTANCE
                 # Continue performing the loop while 'keep_flying' Booelan is True
                 forward_velocity = 0.5
-                y0_distance = 0
-                y_distance = 0
-                x0_distance = 0
-                x_distance = 0
+                
+                y_coord, x_coord = 0, 0 # Current position in the map (y, x)
+                y0_distance, y_distance = 0, 0 # How much the drone is moving in Y direction
+                x0_distance, x_distance = 0, 0 # How much the drone is moving in X direction
+                dy, dx, dt = 0, 0, 0
+                t_0 = time.time()
                 while keep_flying:
-                    print(keep_flying)
+                    # print(keep_flying)
                     # Define initial speed
                     velocity_x = 0.0
                     velocity_y = 0.0
                     obstacle_front = False
+                    print('front: ', multi_ranger.front)
+                    print('back: ', multi_ranger.back)
+
                     # If object in front of the forward-pointing range sensor move backwards
                     if is_close_to_obstacle(multi_ranger.front):
-                        print('I dont see any forward obstacle')
+                        print('Obstacle in front detected at distance: ', multi_ranger.front)
                         velocity_x -= VELOCITY
                         obstacle_front = True
                     
@@ -117,11 +121,11 @@ def perform_mision():
                         SLACK = 0.05
                         if traffic_flow_multi_ranger > TOTAL_DISTANCE - SLACK:
                             print('Moving closer to wall: ', TOTAL_DISTANCE, 'm')
-                            velocity_y += vel_increment
+                            velocity_y += vel_increment_y
 
                         if traffic_flow_multi_ranger < TOTAL_DISTANCE + SLACK:
                             print('Moving far from wall: ', TOTAL_DISTANCE, 'm')
-                            velocity_y -= vel_increment
+                            velocity_y -= vel_increment_y
 
                     # If object to close to the upward pointing ranging sensor land
                     if is_close_to_obstacle(multi_ranger.up):
@@ -133,16 +137,32 @@ def perform_mision():
                     # -------------------------------------
                     # Motion #2: Moving forward
                     # -------------------------------------
-                    print('Moving forward always at 0.5m/s velox ', velocity_x)
+                    final_velocity_x = velocity_x if obstacle_front else forward_velocity
+                    print('Moving forward always at 0.5m/s velox ', final_velocity_x)
                     if obstacle_front:
-                        if TRAFFIC_TYPE == RHT:
-                            motion_commander.turn_left(90)
-                        else:
-                            motion_commander.turn_right(90)
-                        time.sleep(4)
+                        # if TRAFFIC_TYPE == RHT:
+                        #     motion_commander.turn_left(90)
+                        # else:
+                        #     motion_commander.turn_right(90)
+                        time.sleep(2)
                     else:
-                        motion_commander.start_linear_motion(velocity_x if obstacle_front else forward_velocity, velocity_y, 0)
-                    # motion_commander.forward(1.5, 0.5)
+                        # pass
+                        motion_commander.start_linear_motion(final_velocity_x, velocity_y, 0)
+
+                    # Let's compute the current distance of the drone
+                    t = time.time()
+                    dt = t - t_0
+                    t_0 = t
+                    # Compute delta x: dx = vx.dt
+                    dx = final_velocity_x * dt
+                    # Compute delta y: dy = vy.dt
+                    dy = velocity_y * dt
+                    x_distance += dx
+                    y_distance += dy
+                    print('Distance in X meters:', x_distance)
+                    print('Distance in Y meters:', y_distance)
+                    
+                    ## Correct rotation when shifting
                     # y0_distance = traffic_flow_multi_ranger
                     # x0_distance = multi_ranger.front
                     # if x_distance > (x0_distance + dx):
@@ -150,6 +170,8 @@ def perform_mision():
                     # For 0.1 seconds
                     # to try different frequency
                     time.sleep(0.1)
+                    x_coord = round((x_distance * 100) / 10)
+                    print("I am in the X: %s and Y: %s" % (x_coord, y_coord))
             
 # Main program loop
 if __name__ == '__main__':
