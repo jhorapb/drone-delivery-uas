@@ -51,9 +51,7 @@ def perform_mision():
 
     map_occupancy_grid = mapping.build_initial_map()
     last_y, last_x = 0, 0
-    current_y, current_x = 0, 20
-
-    map_occupancy_grid[current_y, current_x] = 230
+    # current_y, current_x = 0, 20
 
     # Create a synchronous connection with the UAS, UAS is now known as 'scf'
     with SyncCrazyflie(URI) as scf:
@@ -68,6 +66,8 @@ def perform_mision():
             # print('Moving up 1.0m at 0.2m/s')
             # motion_commander.up(1.0, 0.2)
             
+            right_traffic = TRAFFIC_TYPE == 0
+            print('TRAFFIC TYPE', TRAFFIC_TYPE)
             # Wait a bit (i.e. 5 seconds) before doing the next step
             time.sleep(5)
 
@@ -77,24 +77,10 @@ def perform_mision():
                 # Define a Boolean that goes to False to stop the mission
                 keep_flying = True
 
-                right_traffic = TRAFFIC_TYPE == RHT
-                if right_traffic:
-                    print('what?', multi_ranger.right)
-                    traffic_flow_multi_ranger = multi_ranger.right
-                    vel_increment_y = VELOCITY
-                    OTHER_TRAFFIC_DISTANCE = 0
-                else:
-                    traffic_flow_multi_ranger = multi_ranger.left
-                    vel_increment_y = VELOCITY
-                    OTHER_TRAFFIC_DISTANCE = DISTANCE_TO_WALL * 2
-
-                print('mranger', traffic_flow_multi_ranger)
-
-                TOTAL_DISTANCE = DISTANCE_TO_WALL + OTHER_TRAFFIC_DISTANCE
                 # Continue performing the loop while 'keep_flying' Booelan is True
                 forward_velocity = 0.5
                 
-                y_coord, x_coord = 0, 0 # Current position in the map (y, x)
+                current_y, current_x = 0, 20 # Current position in the map (y, x)
                 y0_distance, y_distance = 0, 0 # How much the drone is moving in Y direction
                 x0_distance, x_distance = 0, 0 # How much the drone is moving in X direction
                 dy, dx, dt = 0, 0, 0
@@ -102,9 +88,27 @@ def perform_mision():
                 counter = 0
                 direction = 'up'
                 print('I am (FIRST) at [y, x]: (%s, %s)' % (current_y, current_x))
+                map_occupancy_grid[current_y, current_x] = 230
+
                 while keep_flying: # and counter < 80:
-                    print('>>>>>Counter: ', counter)
-                    # print(keep_flying)
+                    
+                    # Defines whether to move far from or close to the wall dependind 
+                    # on the direction of the traffic (clockwise, counterclockwise).
+                    if right_traffic:
+                        traffic_flow_multi_ranger = multi_ranger.right
+                        # print('Right traffic', multi_ranger.right)
+                        vel_increment_y = -VELOCITY
+                        OTHER_TRAFFIC_DISTANCE = 0
+                    else:
+                        traffic_flow_multi_ranger = multi_ranger.left
+                        # print('<--<-<-<-<-Left traffic', multi_ranger.left)
+                        vel_increment_y = VELOCITY
+                        OTHER_TRAFFIC_DISTANCE = DISTANCE_TO_WALL * 2
+
+                    print('mranger', traffic_flow_multi_ranger)
+
+                    TOTAL_DISTANCE = DISTANCE_TO_WALL + OTHER_TRAFFIC_DISTANCE
+
                     # Define initial speed
                     velocity_x = 0.0
                     velocity_y = 0.0
@@ -136,6 +140,7 @@ def perform_mision():
 
                     if traffic_flow_multi_ranger is not None:
                         SLACK = 0.05
+                        print('Current distance: ', TOTAL_DISTANCE - SLACK)
                         if traffic_flow_multi_ranger > TOTAL_DISTANCE - SLACK:
                             print('Moving closer to wall: ', TOTAL_DISTANCE, 'm')
                             velocity_y += vel_increment_y
@@ -144,71 +149,73 @@ def perform_mision():
                             print('Moving far from wall: ', TOTAL_DISTANCE, 'm')
                             velocity_y -= vel_increment_y
 
-                    # If object to close to the upward pointing ranging sensor land
-                    if is_close_to_obstacle(multi_ranger.up):
-                        print('stop?')
-                        keep_flying = False
+                        # If object to close to the upward pointing ranging sensor land
+                        if is_close_to_obstacle(multi_ranger.up):
+                            print('stop?')
+                            keep_flying = False
 
-                    # Perform the motion defined above
-                    # motion_commander.start_linear_motion(velocity_x, velocity_y, 0)
-                    # -------------------------------------
-                    # Motion #2: Moving forward
-                    # -------------------------------------
-                    final_velocity_x = velocity_x if obstacle_front else forward_velocity
-                    print('Moving forward always at 0.5m/s velox ', final_velocity_x)
-                    if obstacle_front:
-                        # keep_flying = False
-                        # print('here?')
-                        # if TRAFFIC_TYPE == RHT:
-                        #     motion_commander.turn_left(90)
-                        # else:
-                        #     motion_commander.turn_right(90)
-                        time.sleep(2)
-                    else:
-                        # pass
-                        motion_commander.start_linear_motion(final_velocity_x, velocity_y, 0)
+                        # Perform the motion defined above
+                        # -------------------------------------
+                        # Motion #2: Moving forward
+                        # -------------------------------------
+                        final_velocity_x = velocity_x if obstacle_front else forward_velocity
+                        print('Moving forward at velocity of ', final_velocity_x)
+                        if obstacle_front:
+                            # keep_flying = False
+                            # print('here?')
+                            # if TRAFFIC_TYPE == RHT:
+                            #     motion_commander.turn_left(90)
+                            # else:
+                            #     motion_commander.turn_right(90)
+                            time.sleep(2)
+                        else:
+                            # pass
+                            print('current vel x: ', final_velocity_x)
+                            print('current vel y: ', velocity_y)
+                            motion_commander.start_linear_motion(final_velocity_x, velocity_y, 0)
 
-                    # Let's compute the current distance of the drone
-                    t = time.time()
-                    dt = t - t_0
-                    t_0 = t
-                    # Compute delta x: dx = vx.dt
-                    if final_velocity_x < 0:
-                        final_velocity_x = 0
-                    dx = final_velocity_x * dt
-                    # Compute delta y: dy = vy.dt
-                    dy = velocity_y * dt
-                    x_distance += dx
-                    y_distance += dy
-                    # print('Distance in X meters:', x_distance)
-                    # print('Distance in Y meters:', y_distance)
-                    
-                    ## Correct rotation when shifting
-                    # y0_distance = traffic_flow_multi_ranger
-                    # x0_distance = multi_ranger.front
-                    # if x_distance > (x0_distance + dx):
+                        # Let's compute the current distance of the drone
+                        t = time.time()
+                        dt = t - t_0
+                        t_0 = t
+                        # Compute delta x: dx = vx.dt
+                        if final_velocity_x < 0:
+                            final_velocity_x = 0
+                        dx = final_velocity_x * dt
+                        # Compute delta y: dy = vy.dt
+                        dy = velocity_y * dt
+                        x_distance += dx
+                        y_distance += dy
+                        # print('Distance in X meters:', x_distance)
+                        # print('Distance in Y meters:', y_distance)
+                        
+                        ## Correct rotation when shifting
+                        # y0_distance = traffic_flow_multi_ranger
+                        # x0_distance = multi_ranger.front
+                        # if x_distance > (x0_distance + dx):
 
-                    # For 0.1 seconds
-                    # to try different frequency
-                    time.sleep(0.1)
-                    forward_cells = round((x_distance * 100) / 10)
-                    if direction == 'up':
-                        current_y += forward_cells
-                    if direction == 'down':
-                        current_y -= forward_cells
-                    if direction == 'left':
-                        current_x -= forward_cells
-                    if direction == 'right':
-                        current_x += forward_cells
-                    print("I am in the Y: %s and X: %s" % (current_y, current_x))
-                    last_y = current_y
-                    last_x = current_x
+                        # For 0.1 seconds
+                        # to try different frequency
+                        time.sleep(0.1)
+                        forward_cells = round((x_distance * 100) / 10)
+                        if direction == 'up':
+                            current_y += forward_cells
+                        if direction == 'down':
+                            current_y -= forward_cells
+                        if direction == 'left':
+                            current_x -= forward_cells
+                        if direction == 'right':
+                            current_x += forward_cells
+                        print("I am in the Y: %s and X: %s" % (current_y, current_x))
+                        last_y = current_y
+                        last_x = current_x
+                        print('I am at [y, x]: (%s, %s)' % (current_y, current_x))
+                        if inside_boundaries(map_occupancy_grid, y=current_y, x=current_x):
+                            map_occupancy_grid[last_y, last_x] = 100
+                        else:
+                            keep_flying = False
+                    print('traffic flow ranger:', traffic_flow_multi_ranger)
                     counter += 1
-                    print('I am at [y, x]: (%s, %s)' % (current_y, current_x))
-                    if inside_boundaries(map_occupancy_grid, y=current_y, x=current_x):
-                        map_occupancy_grid[last_y, last_x] = 100
-                    else:
-                        keep_flying = False
     
     mapping.plot_map(map_occupancy_grid)
             
