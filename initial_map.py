@@ -22,7 +22,18 @@ C_Clockwise = False
 def coord2cell(coord):
     return round(coord/grid_size)
 
-if __name__ == '__main__':
+
+def plot_map(occupancy_grid):
+    matplotlib.rc('xtick', labelsize=5)
+    matplotlib.rc('ytick', labelsize=5)
+    plt.figure()
+    plt.imshow(occupancy_grid, cmap="hsv")
+    plt.title("Drone map")
+    plt.gca().invert_yaxis()
+    plt.show()
+
+
+def build_initial_map():
     x_size = 1200
     y_size = 800
     occupancy_grid = np.zeros((coord2cell(y_size), coord2cell(x_size)))
@@ -110,28 +121,4 @@ if __name__ == '__main__':
                     if i>=(coord2cell(C[0][0])+(coord2cell(C[2][0])-coord2cell(C[0][0]))/2) and i<=coord2cell(C[2][0]) and j>=coord2cell(D[1][1]) and j<=coord2cell(C[0][1]) and occupancy_grid[j, i]==30:
                         occupancy_grid[j, i] = 0
 
-    #if in sectionAB or sectionCD:
-    #   direction = ydir
-    #   if C_Clockwise:
-    #       for j in range(coord2cell(y_size)):
-    #           for i in range(coord2cell(x_size)):
-    #               if not(i>=min_x_channel and i<=max_x_channel) and occupancy_grid[j, i]==100:
-    #                   occupancy_grid[j, i]=50
-    #else direction x
-
-    #occupancy_grid=np.flip(occupancy_grid,0)
-    #print(occupancy_grid)
-    matplotlib.rc('xtick', labelsize=5)
-    matplotlib.rc('ytick', labelsize=5)
-    plt.figure()
-    plt.imshow(occupancy_grid, cmap="gray")
-    plt.title("Drone map")
-    plt.gca().invert_yaxis()
-    plt.show()
-
-
-
-
-
-
-
+    return occupancy_grid

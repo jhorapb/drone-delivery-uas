@@ -8,6 +8,9 @@ from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.positioning.motion_commander import MotionCommander
 from cflib.utils.multiranger import Multiranger
 
+# Custom modules
+import initial_map as mapping
+
 # Unique radio link identifier between computer and Craziflie UAS
 URI = 'radio://0/80/2M/E7E7E7E7E9'
 
@@ -17,7 +20,7 @@ logging.basicConfig(level=logging.ERROR)
 # Control constants
 RHT = 0 # Going
 LHT = 1 # Returning
-TRAFFIC_TYPE = RHT
+TRAFFIC_TYPE = LHT
 # Define speed increment
 VELOCITY = 0.2 # m/s
 TOTAL_WIDTH = 2
@@ -35,12 +38,22 @@ def is_close_to_obstacle(range):
     else:
         return range > MIN_LIMIT and range < MAX_LIMIT
 
+def inside_boundaries(occupancy_grid, y=0, x=0):
+    grid_size = occupancy_grid.shape
+    return y in range(grid_size[0]) and x in range(grid_size[1])
+
 def perform_mision():
     
     global DISTANCE_TO_WALL
     global OTHER_TRAFFIC_DISTANCE
     global TRAFFIC_TYPE
     global RHT, LHT
+
+    map_occupancy_grid = mapping.build_initial_map()
+    last_y, last_x = 0, 0
+    current_y, current_x = 0, 20
+
+    map_occupancy_grid[current_y, current_x] = 230
 
     # Create a synchronous connection with the UAS, UAS is now known as 'scf'
     with SyncCrazyflie(URI) as scf:
@@ -86,7 +99,11 @@ def perform_mision():
                 x0_distance, x_distance = 0, 0 # How much the drone is moving in X direction
                 dy, dx, dt = 0, 0, 0
                 t_0 = time.time()
-                while keep_flying:
+                counter = 0
+                direction = 'up'
+                print('I am (FIRST) at [y, x]: (%s, %s)' % (current_y, current_x))
+                while keep_flying: # and counter < 80:
+                    print('>>>>>Counter: ', counter)
                     # print(keep_flying)
                     # Define initial speed
                     velocity_x = 0.0
@@ -140,6 +157,8 @@ def perform_mision():
                     final_velocity_x = velocity_x if obstacle_front else forward_velocity
                     print('Moving forward always at 0.5m/s velox ', final_velocity_x)
                     if obstacle_front:
+                        # keep_flying = False
+                        # print('here?')
                         # if TRAFFIC_TYPE == RHT:
                         #     motion_commander.turn_left(90)
                         # else:
@@ -154,13 +173,15 @@ def perform_mision():
                     dt = t - t_0
                     t_0 = t
                     # Compute delta x: dx = vx.dt
+                    if final_velocity_x < 0:
+                        final_velocity_x = 0
                     dx = final_velocity_x * dt
                     # Compute delta y: dy = vy.dt
                     dy = velocity_y * dt
                     x_distance += dx
                     y_distance += dy
-                    print('Distance in X meters:', x_distance)
-                    print('Distance in Y meters:', y_distance)
+                    # print('Distance in X meters:', x_distance)
+                    # print('Distance in Y meters:', y_distance)
                     
                     ## Correct rotation when shifting
                     # y0_distance = traffic_flow_multi_ranger
@@ -170,8 +191,26 @@ def perform_mision():
                     # For 0.1 seconds
                     # to try different frequency
                     time.sleep(0.1)
-                    x_coord = round((x_distance * 100) / 10)
-                    print("I am in the X: %s and Y: %s" % (x_coord, y_coord))
+                    forward_cells = round((x_distance * 100) / 10)
+                    if direction == 'up':
+                        current_y += forward_cells
+                    if direction == 'down':
+                        current_y -= forward_cells
+                    if direction == 'left':
+                        current_x -= forward_cells
+                    if direction == 'right':
+                        current_x += forward_cells
+                    print("I am in the Y: %s and X: %s" % (current_y, current_x))
+                    last_y = current_y
+                    last_x = current_x
+                    counter += 1
+                    print('I am at [y, x]: (%s, %s)' % (current_y, current_x))
+                    if inside_boundaries(map_occupancy_grid, y=current_y, x=current_x):
+                        map_occupancy_grid[last_y, last_x] = 100
+                    else:
+                        keep_flying = False
+    
+    mapping.plot_map(map_occupancy_grid)
             
 # Main program loop
 if __name__ == '__main__':
