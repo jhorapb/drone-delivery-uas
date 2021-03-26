@@ -18,11 +18,10 @@ URI = 'radio://0/80/2M/E7E7E7E7E9'
 logging.basicConfig(level=logging.ERROR)
 
 # Control constants
-COUNTERCLOCKWISE = 1 # Going
-CLOCKWISE = 0 # Returning
+CLOCKWISE = True # True: left to right, False: right to left
 TRAFFIC_TYPE = CLOCKWISE
 VELOCITY = 0.1 # (m/s) Define speed increment
-TOTAL_WIDTH = 1.2
+TOTAL_WIDTH = 2
 DISTANCE_TO_WALL = TOTAL_WIDTH / 4
 OTHER_TRAFFIC_DISTANCE = 0
 SLACK = 0.02
@@ -55,6 +54,8 @@ def inside_boundaries(occupancy_grid, y=0, x=0):
 def obstacle_avoidance(multi_ranger, velocity_x, velocity_y):
 
     global VELOCITY
+    global obstacle_front
+    global obstacle_side
 
     # If object in front of the forward-pointing range sensor move backwards
     if is_close_to_obstacle(multi_ranger.front):
@@ -85,7 +86,7 @@ def wall_following(traffic_flow_multi_ranger, velocity_wall):
 
     global TOTAL_DISTANCE, SLACK
     # Defines whether to move far from or close to the wall dependind 
-    # on the direction of the traffic (CLOCKWISE, counterCLOCKWISE).                  
+    # on the direction of the traffic (clockwise or not).
     print('Control distance: ', TOTAL_DISTANCE - SLACK)
     print('and traffic_flow_multi_ranger: ', traffic_flow_multi_ranger)
     if traffic_flow_multi_ranger > TOTAL_DISTANCE + SLACK:
@@ -95,9 +96,11 @@ def wall_following(traffic_flow_multi_ranger, velocity_wall):
     if traffic_flow_multi_ranger < TOTAL_DISTANCE - SLACK:
         print('Moving far from wall: ', TOTAL_DISTANCE, 'm')
         return -velocity_wall
+    
     return 0
 
 def stop_flying(up_ranger):
+    global keep_flying
     # If object to close to the upward pointing ranging sensor land
     if is_close_to_obstacle(up_ranger):
         print('stop?')
@@ -108,7 +111,7 @@ def perform_mision():
     global DISTANCE_TO_WALL
     global OTHER_TRAFFIC_DISTANCE
     global TRAFFIC_TYPE
-    global COUNTERCLOCKWISE, CLOCKWISE
+    global CLOCKWISE
     global keep_flying
     global obstacle_front
     global obstacle_side
@@ -131,8 +134,9 @@ def perform_mision():
             # print('Moving up 1.0m at 0.2m/s')
             # motion_commander.up(1.0, 0.2)
             
-            right_traffic = TRAFFIC_TYPE == 0
-            print('TRAFFIC TYPE', TRAFFIC_TYPE)
+            right_traffic = not TRAFFIC_TYPE
+            print('TRAFFIC TYPE: ', TRAFFIC_TYPE, 
+                'Clockwise' if TRAFFIC_TYPE else 'Counterclockwise')
             # Wait a bit (i.e. 5 seconds) before doing the next step
             time.sleep(5)
 
@@ -142,7 +146,8 @@ def perform_mision():
                 # Continue performing the loop while 'keep_flying' Booelan is True
                 forward_velocity = 0.2
                 
-                current_y, current_x = 15, 20 # Current position in the map (y, x)
+                initial_y, initial_x = 15, 20 # Initial position in the map (y, x)
+                current_y, current_x = initial_y, initial_x # Current position in the map (y, x)
                 y0_distance, y_distance = 0, 0 # How much the drone is moving in Y direction
                 x0_distance, x_distance = 0, 0 # How much the drone is moving in X direction
                 dy, dx, dt = 0, 0, 0
@@ -152,7 +157,8 @@ def perform_mision():
                 print('I am (FIRST) at [y, x]: (%s, %s)' % (current_y, current_x))
                 map_occupancy_grid[current_y, current_x] = 230
 
-                while keep_flying: # and counter < 80:
+                while keep_flying:
+                    print('Counter', counter)
                     obstacle_front = False
                     obstacle_side = False
                     # Define initial speed
@@ -167,30 +173,27 @@ def perform_mision():
 
                     # Define the multi ranger sensor for wall following
                     if right_traffic:
-                        # CounterCLOCKWISE
+                        # Counterclockwise
                         print('right traff')
                         traffic_flow_multi_ranger = multi_ranger.right
                         velocity_wall = -VELOCITY
                         OTHER_TRAFFIC_DISTANCE = 0
                     else:
-                        # CLOCKWISE
+                        # Clockwise
                         traffic_flow_multi_ranger = multi_ranger.left
                         velocity_wall = VELOCITY
                         OTHER_TRAFFIC_DISTANCE = DISTANCE_TO_WALL * 2
 
                     print('mranger', traffic_flow_multi_ranger)
 
-                    # If CLOCKWISE, TOTAL_DISTANCE = 0.5 + 1 = 1.5
-                    # If CounterCLOCKWISE, TOTAL_DISTANCE = 0.5 + 0 = 0.5
+                    # If Clockwise, TOTAL_DISTANCE = 0.5 + 1 = 1.5
+                    # If Counterclockwise, TOTAL_DISTANCE = 0.5 + 0 = 0.5
                     TOTAL_DISTANCE = DISTANCE_TO_WALL + OTHER_TRAFFIC_DISTANCE
 
                     # Check this. too far for CLOCKWISE
                     if traffic_flow_multi_ranger is not None:
-
                         velocity_wall = wall_following(traffic_flow_multi_ranger, velocity_wall)
                         stop_flying(multi_ranger.up)
-
-
 
                         # Perform the motion defined above
                         # -------------------------------------
@@ -203,11 +206,12 @@ def perform_mision():
                         if obstacle_front:
                             # keep_flying = False
                             # print('here?')
-                            # if TRAFFIC_TYPE == COUNTERCLOCKWISE:
+                            # if right_traffic:
                             #     motion_commander.turn_left(90)
                             # else:
                             #     motion_commander.turn_right(90)
-                            time.sleep(2)
+                            # time.sleep(2)
+                            pass
                         else:
                             # pass
                             print('current vel x: ', final_velocity_x)
@@ -238,21 +242,22 @@ def perform_mision():
                         # to try different frequency
                         time.sleep(0.1)
                         # Check this. it goes too fast
-                        forward_cells = round((dx * 100) / 10)
+                        forward_cells = round((x_distance * 100) / 10)
+                        print('->->-> Forward cells', forward_cells)
                         if direction == 'up':
-                            current_y += forward_cells
+                            print('++++++++yes UP', forward_cells)
+                            current_y = initial_y + forward_cells
                         if direction == 'down':
-                            current_y -= forward_cells
+                            current_y = initial_y - forward_cells
                         if direction == 'left':
-                            current_x -= forward_cells
+                            current_x = initial_x - forward_cells
                         if direction == 'right':
-                            current_x += forward_cells
-                        print("I am in the Y: %s and X: %s" % (current_y, current_x))
-                        last_y = current_y
-                        last_x = current_x
+                            current_x = initial_x + forward_cells
+                        print('I am in the Y: %s and X: %s' % (current_y, current_x))
                         print('I am at [y, x]: (%s, %s)' % (current_y, current_x))
+                        # if current_y < 50 and inside_boundaries(map_occupancy_grid, y=current_y, x=current_x):
                         if inside_boundaries(map_occupancy_grid, y=current_y, x=current_x):
-                            map_occupancy_grid[last_y, last_x] = 100
+                            map_occupancy_grid[current_y, current_x] = 100
                         else:
                             keep_flying = False
                     print('traffic flow ranger:', traffic_flow_multi_ranger)
