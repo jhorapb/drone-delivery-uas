@@ -24,6 +24,7 @@ logging.basicConfig(level=logging.ERROR)
 # Control constants
 CLOCKWISE = True # True: left to right, False: right to left
 TRAFFIC_TYPE = CLOCKWISE
+right_traffic = not TRAFFIC_TYPE
 VELOCITY = 0.1 # (m/s) Define speed increment
 TOTAL_WIDTH = 2
 DISTANCE_TO_WALL = TOTAL_WIDTH / 4
@@ -33,24 +34,25 @@ keep_flying = True # Define a Boolean that goes to False to stop the mission
 obstacle_front = False
 obstacle_side = False
 TOTAL_DISTANCE = 0
-starting_point = "A"
-goal_point = "C"
 Map = mapping.UpdateMap()
-if COUNTERCLOCKWISE:
-    A_point = [Map.A[0][0] + (Map.A[2][0] - Map.A[0][0])/4, (Map.A[1][1] - Map.A[0][1])/2]
-    B_point = [Map.B[0][0] + (Map.B[2][0] - Map.B[0][0])/4, Map.B[0][1] + 3*(Map.B[1][1] - Map.B[0][1])/4]
-    C_point = [Map.C[0][0] + 3*(Map.C[2][0] - Map.C[0][0])/4, Map.C[0][1] + 3*(Map.C[1][1] - Map.C[0][1])/4]
-    D_point = [Map.D[0][0] + 3*(Map.D[2][0] - Map.D[0][0])/4, (Map.D[1][1] - Map.D[0][1])/2]
-    MISSIONS = {"D":D_point, "C":C_point, "B":B_point, "A": A_point}
-else:
-    A_point = [Map.A[0][0] + 3*(Map.A[2][0] - Map.A[0][0])/4, (Map.A[1][1] - Map.A[0][1])/2]
-    B_point = [Map.B[0][0] + 3*(Map.B[2][0] - Map.B[0][0])/4, Map.B[0][1] + (Map.B[1][1] - Map.B[0][1])/4]
-    C_point = [Map.C[0][0] + (Map.C[2][0] - Map.C[0][0])/4, Map.C[0][1] + (Map.C[1][1] - Map.C[0][1])/4]
-    D_point = [Map.D[0][0] + (Map.D[2][0] - Map.D[0][0])/4, (Map.D[1][1] - Map.D[0][1])/2]
-    MISSIONS = {"A": A_point, "B":B_point, "C":C_point, "D":D_point}
 
-trajectory = [i for i in list(MISSIONS.values())[list(MISSIONS.keys()).index(starting_point):list(MISSIONS.keys()).index(goal_point)+1]]
-counter_checkpoint = 0
+def create_trajectory(starting_point, goal_point):
+    global right_traffic
+    if right_traffic:
+        A_point = [Map.A[0][0] + (Map.A[2][0] - Map.A[0][0])/4, (Map.A[1][1] - Map.A[0][1])/2]
+        B_point = [Map.B[0][0] + (Map.B[2][0] - Map.B[0][0])/4, Map.B[0][1] + 3*(Map.B[1][1] - Map.B[0][1])/4]
+        C_point = [Map.C[0][0] + 3*(Map.C[2][0] - Map.C[0][0])/4, Map.C[0][1] + 3*(Map.C[1][1] - Map.C[0][1])/4]
+        D_point = [Map.D[0][0] + 3*(Map.D[2][0] - Map.D[0][0])/4, (Map.D[1][1] - Map.D[0][1])/2]
+        MISSIONS = {"D": D_point, "C": C_point, "B": B_point, "A": A_point}
+    else:
+        A_point = [Map.A[0][0] + 3*(Map.A[2][0] - Map.A[0][0])/4, (Map.A[1][1] - Map.A[0][1])/2]
+        B_point = [Map.B[0][0] + 3*(Map.B[2][0] - Map.B[0][0])/4, Map.B[0][1] + (Map.B[1][1] - Map.B[0][1])/4]
+        C_point = [Map.C[0][0] + (Map.C[2][0] - Map.C[0][0])/4, Map.C[0][1] + (Map.C[1][1] - Map.C[0][1])/4]
+        D_point = [Map.D[0][0] + (Map.D[2][0] - Map.D[0][0])/4, (Map.D[1][1] - Map.D[0][1])/2]
+        MISSIONS = {"A": A_point, "B":B_point, "C":C_point, "D":D_point}
+
+    trajectory = [i for i in list(MISSIONS.values())[list(MISSIONS.keys()).index(starting_point):list(MISSIONS.keys()).index(goal_point)+1]]
+    return trajectory
 
 # Function that checks if the 'range' value is smaller than 0.2. 
 # It return a Boolean True is so, and False if not
@@ -122,7 +124,7 @@ def stop_flying(up_ranger):
         print('stop?')
         keep_flying = False
 
-def perform_mision():
+def perform_mision(trajectory):
     
     global DISTANCE_TO_WALL
     global OTHER_TRAFFIC_DISTANCE
@@ -137,8 +139,12 @@ def perform_mision():
     occupancy_grid = np.zeros((80, 120))
     #occupancy_grid = Map.initialize_map(occupancy_grid)
     last_y, last_x = 0, 0
-    # current_y, current_x = 0, 20
-    Initialized_x_y = True
+    # y_global_distance, x_global_distance = 0, 20
+    initialized_x_y = True
+
+    counter_checkpoint = 0
+    y_check = trajectory[0][0]
+    x_check = trajectory[0][1]
 
     # Create a synchronous connection with the UAS, UAS is now known as 'scf'
     with SyncCrazyflie(URI) as scf:
@@ -152,7 +158,6 @@ def perform_mision():
             # print('Moving up 1.0m at 0.2m/s')
             # motion_commander.up(1.0, 0.2)
             
-            right_traffic = not TRAFFIC_TYPE
             print('TRAFFIC TYPE: ', TRAFFIC_TYPE, 
                 'Clockwise' if TRAFFIC_TYPE else 'Counterclockwise')
             # Wait a bit (i.e. 5 seconds) before doing the next step
@@ -165,15 +170,15 @@ def perform_mision():
                 forward_velocity = 0.2
                 
                 initial_y, initial_x = 15, 20 # Initial position in the map (y, x)
-                current_y, current_x = initial_y, initial_x # Current position in the map (y, x)
-                y0_distance, y_distance = 0, 0 # How much the drone is moving in Y direction
-                x0_distance, x_distance = 0, 0 # How much the drone is moving in X direction
+                y_global_distance, x_global_distance = initial_y, initial_x # Current position in the map (y, x)
+                y0_drone_distance, y_drone_distance = 0, 0 # How much the drone is moving in Y direction
+                x0_drone_distance, x_drone_distance = 0, 0 # How much the drone is moving in X direction
                 dy, dx, dt = 0, 0, 0
                 t_0 = time.time()
                 counter = 0
                 direction = 'up'
-                print('I am (FIRST) at [y, x]: (%s, %s)' % (current_y, current_x))
-                occupancy_grid[current_y, current_x] = 230
+                print('I am (FIRST) at [y, x]: (%s, %s)' % (y_global_distance, x_global_distance))
+                occupancy_grid[y_global_distance, x_global_distance] = 230
 
                 # ANIMATE OCCUPANCY GRID
                 plt.ion() 
@@ -185,8 +190,11 @@ def perform_mision():
                 Occ_Map = plt.imshow(occupancy_grid_upd, cmap="gray")
                 plt.gca().invert_yaxis()
                 plt.grid(linestyle = '--', linewidth = 0.2)
+                initialize_coords = True
+                checkpoint_reached = False
 
                 while keep_flying: # and counter < 80:
+                    
                     Map.Update_map(occupancy_grid_upd, Occ_Map)
                     obstacle_front = False
                     obstacle_side = False
@@ -196,9 +204,6 @@ def perform_mision():
                     velocity_wall = 0.0
                     print('front: ', multi_ranger.front)
                     print('back: ', multi_ranger.back)
-
-                    #velocity_x, velocity_y = obstacle_avoidance(multi_ranger, velocity_x, velocity_y)
-
                     # Define the multi ranger sensor for wall following
                     velocity_x, velocity_y = obstacle_avoidance(multi_ranger, velocity_x, velocity_y)
                     if right_traffic:
@@ -221,13 +226,6 @@ def perform_mision():
 
                     # Check this. too far for CLOCKWISE
                     if traffic_flow_multi_ranger is not None:
-                        if Initialized_x_y:
-                            if COUNTERCLOCKWISE:
-                                y_distance = float(occupancy_grid.shape[0]-round(multi_ranger.right*10))
-                            else:
-                                y_distance = float(multi_ranger.left*10)
-                            x_distance = float(multi_ranger.back*10)
-                            Initialized_x_y = False
 
                         velocity_wall = wall_following(traffic_flow_multi_ranger, velocity_wall)
                         stop_flying(multi_ranger.up)
@@ -238,100 +236,74 @@ def perform_mision():
 
                         print('Moving forward at velocity of ', final_velocity_x)
 
-                        if traffic_flow_multi_ranger < TOTAL_DISTANCE + SLACK:
-                            print('Moving far from wall: ', TOTAL_DISTANCE, 'm')
-                            velocity_y -= vel_increment_y
-
-                        # If object to close to the upward pointing ranging sensor land
-                        if is_close_to_obstacle(multi_ranger.up):
-                            print('stop?')
-                            keep_flying = False
-
-                        # Perform the motion defined above
-                        # -------------------------------------
-                        # Motion #2: Moving forward
-                        # -------------------------------------
-                        final_velocity_x = velocity_x if obstacle_front else forward_velocity
-                        print('Moving forward at velocity of ', final_velocity_x)
-                        if obstacle_front:
-                            # keep_flying = False
-                            # print('here?')
-                            # if TRAFFIC_TYPE == RHT:
-                            #     motion_commander.turn_left(90)
-                            # else:
-                            #     motion_commander.turn_right(90)
-                            time.sleep(2)
-                        else:
-                            # pass
-                            print('current vel x: ', final_velocity_x)
-                            print('current vel y: ', velocity_y)
-                            motion_commander.start_linear_motion(final_velocity_x, velocity_y, 0)
-
-                        # Let's compute the current distance of the drone
-                        t = time.time()
-                        dt = t - t_0
-                        t_0 = t
-                        # Compute delta x: dx = vx.dt
-                        if final_velocity_x < 0:
-                            final_velocity_x = 0
-                        dx = final_velocity_x * dt
-                        # Compute delta y: dy = vy.dt
-                        dy = velocity_y * dt
-                        x_distance += dx*10
-                        y_distance += dy*10
-                        print('Distance in X meters:', x_distance)
-                        # print('Distance in Y meters:', y_distance)
-
-                        ## Correct rotation when shifting
-                        # y0_distance = traffic_flow_multi_ranger
-                        # x0_distance = multi_ranger.front
-                        # if x_distance > (x0_distance + dx):
-
-                        # For 0.1 seconds
-                        # to try different frequency
-                        time.sleep(0.1)
-                        # Check this. it goes too fast
-                        forward_cells = round((x_distance * 100) / 10)
-                        print('->->-> Forward cells', forward_cells)
-                        if direction == 'up':
-                            print('++++++++yes UP', forward_cells)
-                            current_y = initial_y + forward_cells
-                        if direction == 'down':
-                            current_y = initial_y - forward_cells
-                        if direction == 'left':
-                            current_x = initial_x - forward_cells
-                        if direction == 'right':
-                            current_x = initial_x + forward_cells
-                        print('I am in the Y: %s and X: %s' % (current_y, current_x))
-                        print('I am at [y, x]: (%s, %s)' % (current_y, current_x))
-                        if inside_boundaries(occupancy_grid, y=current_y, x=current_x):
-                            occupancy_grid[last_y, last_x] = 100
-                        else:
-                            keep_flying = False
+                        
 
                         # PLANNING
+                        
                         if counter_checkpoint < len(trajectory):
-                            if ((x_distance-trajectory[counter_checkpoint][0]/10)**2 + (y_distance-trajectory[counter_checkpoint][1]/10)**2 < 1):
-                                print('Reached the next checkpoint by mapping')
-                                counter_checkpoint+=1
-                                if (TRAFFIC_TYPE == COUNTERCLOCKWISE):
-                                    motion_commander.turn_left(90)
-                                else:
-                                    motion_commander.turn_right(90)
-                            elif (x_distance-trajectory[counter_checkpoint][0]/10)**2 + (y_distance-trajectory[counter_checkpoint][1]/10)**2 < 3:
-                                                                
-                                if obstacle_front:
-                                    counter_checkpoint+=1
+                            iter_y_check = trajectory[counter_checkpoint][0]
+                            iter_x_check = trajectory[counter_checkpoint][1]
+                            # Check if direction is up or down
+                            if y_check != iter_y_check:
+                                direction = 'up' if iter_y_check > y_check else 'down'
+                            # Check if direction is left or right
+                            if x_check != iter_x_check:
+                                direction = 'right' if iter_x_check > x_check else 'left'
+                            y_check = iter_y_check
+                            x_check = iter_x_check
 
-                                    #keep_flying = False
+                            # LOCALIZATION
+                            # Let's compute the current distance of the drone
+                            t = time.time()
+                            dt = t - t_0
+                            t_0 = t
+                            # Compute delta x: dx = vx.dt
+                            if final_velocity_x < 0:
+                                final_velocity_x = 0
+                            dx = final_velocity_x * dt
+                            # Compute delta y: dy = vy.dt
+                            dy = velocity_y * dt
+                            x_drone_distance += dx*10
+                            y_drone_distance += dy*10
+                            print('Distance in X meters:', x_drone_distance)
+                            # print('Distance in Y meters:', y_drone_distance)
+
+                            ## Correct rotation when shifting
+                            # y0_distance = traffic_flow_multi_ranger
+                            # x0_distance = multi_ranger.front
+                            # if x_distance > (x0_distance + dx):
+
+                            # For 0.1 seconds
+                            # to try different frequency
+                            time.sleep(0.1)
+                            # Check this. it goes too fast
+                            print('->->-> Forward cells', x_drone_distance)
+                            if direction == 'up':
+                                y_global_distance = initial_y + x_drone_distance
+                            elif direction == 'down':
+                                y_global_distance = initial_y - x_drone_distance
+                            elif direction == 'left':
+                                x_global_distance = initial_x - x_drone_distance
+                            elif direction == 'right':
+                                x_global_distance = initial_x + x_drone_distance
+                            y_global_distance = round(y_global_distance)
+                            x_global_distance = round(x_global_distance)
+                            print('I am in the Y: %s and X: %s' % (y_global_distance, x_global_distance))
+                            print('I am at [y, x]: (%s, %s)' % (y_global_distance, x_global_distance))
+                            if inside_boundaries(occupancy_grid, y=y_global_distance, x=x_global_distance):
+                                occupancy_grid[last_y, last_x] = 100
+                            else:
+                                print('fuck you')
+                                keep_flying = False
+
+                            if ((x_global_distance-trajectory[counter_checkpoint][0]/10)**2 + (y_global_distance-trajectory[counter_checkpoint][1]/10)**2 < 1):
+                                print('Reached the next checkpoint by mapping')
+                                checkpoint_reached = True
+                            elif (x_global_distance-trajectory[counter_checkpoint][0]/10)**2 + (y_global_distance-trajectory[counter_checkpoint][1]/10)**2 < 3:
+                                if obstacle_front:
+                                    checkpoint_reached = True
                                     print('Reached the next checkpoint by ranger')
-                                    if TRAFFIC_TYPE == COUNTERCLOCKWISE:
-                                        motion_commander.turn_left(90)
-                                    else:
-                                        motion_commander.turn_right(90)
-                                    time.sleep(2)
                                 else:
-                                    # pass
                                     print('current vel x: ', final_velocity_x)
                                     print('current vel y: ', final_velocity_y)
                                     motion_commander.start_linear_motion(final_velocity_x, final_velocity_y, 0)
@@ -339,9 +311,46 @@ def perform_mision():
                                 print('current vel x: ', final_velocity_x)
                                 print('current vel y: ', final_velocity_y)
                                 motion_commander.start_linear_motion(final_velocity_x, final_velocity_y, 0)
+                            if checkpoint_reached:
+                                if right_traffic:
+                                    motion_commander.turn_left(90)
+                                else:
+                                    motion_commander.turn_right(90)
+                                counter_checkpoint += 1
+                                x_drone_distance = 0
+                                y_drone_distance = 0
+                                initialize_coords = True
+                                time.sleep(2)
+                            if initialize_coords:
+                                if right_traffic:
+                                    if direction == 'up':
+                                        x_global_distance = float(occupancy_grid.shape[1]-round(multi_ranger.right*10))
+                                        y_global_distance = float(multi_ranger.back*10)
+                                    elif direction == 'down':
+                                        x_global_distance = float(round(multi_ranger.right*10))
+                                        y_global_distance = float(occupancy_grid.shape[0]-round(multi_ranger.back*10))
+                                    elif direction == 'left':
+                                        x_global_distance = float(occupancy_grid.shape[1]-round(multi_ranger.back*10))
+                                        y_global_distance = float(occupancy_grid.shape[0]-round(multi_ranger.right*10))
+                                    #x_global_distance = float(occupancy_grid.shape[1]-round(multi_ranger.right*10))
+                                else:
+                                    if direction == 'up':
+                                        x_global_distance = float(multi_ranger.left*10)
+                                        y_global_distance = float(multi_ranger.back*10)
+                                    elif direction == 'down':
+                                        x_global_distance = float(occupancy_grid.shape[1]-round(multi_ranger.left*10))
+                                        y_global_distance = float(occupancy_grid.shape[0]-round(multi_ranger.back*10))
+                                    elif direction == 'right':
+                                        x_global_distance = float(multi_ranger.back*10)
+                                        y_global_distance = float(occupancy_grid.shape[0]-round(multi_ranger.left*10))
+                                    #x_global_distance = float(multi_ranger.left*10)
+                                #y_global_distance = float(multi_ranger.back*10)
+                                initial_y = y_global_distance
+                                initial_x = x_global_distance
+                                initialize_coords = False
                         else:
                             keep_flying = False
-
+                        #print('keep_flying', keep_flying)
                     print('traffic flow ranger:', traffic_flow_multi_ranger)
                     
                     counter += 1
@@ -355,5 +364,10 @@ if __name__ == '__main__':
     # Initialize the low-level drivers (don't list the debug drivers)
     cflib.crtp.init_drivers(enable_debug_driver=False)
 
-    # Call to perform drone mission
-    perform_mision()
+    MISSIONS = [('A', 'C')] # ('A', 'C'), ('C', 'B'), ('B', 'D')
+    for mission in MISSIONS:
+        starting_point = mission[0]
+        goal_point = mission[1]
+        trajectory = create_trajectory(starting_point, goal_point)
+        # Call to perform drone mission
+        perform_mision(trajectory)
