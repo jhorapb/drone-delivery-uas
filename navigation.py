@@ -25,8 +25,6 @@ FULL_URI = 'radio://0/80/2M/%s' % (URI,)
 logging.basicConfig(level=logging.ERROR)
 
 # Control constants
-TRAFFIC_TYPE = True # True: left to right (Clockwise), False: right to left (Counterclockwise)
-right_traffic = not TRAFFIC_TYPE
 VELOCITY = 0.3 # (m/s) Define speed increment
 TOTAL_WIDTH = 2
 DISTANCE_TO_WALL = TOTAL_WIDTH / 4
@@ -39,9 +37,9 @@ TOTAL_DISTANCE = 0
 Map = mapping.UpdateMap()
 current_section = ''
 
-def create_trajectory(starting_point, goal_point):
-    global right_traffic
-    if right_traffic:
+def create_trajectory(starting_point, goal_point, CLOCKWISE):
+
+    if not CLOCKWISE:
         A_point = [Map.A[0][0] + (Map.A[2][0] - Map.A[0][0])/4, (Map.A[1][1] - Map.A[0][1])/2]
         B_point = [Map.B[0][0] + (Map.B[2][0] - Map.B[0][0])/4, Map.B[0][1] + 3*(Map.B[1][1] - Map.B[0][1])/4]
         C_point = [Map.C[0][0] + 3*(Map.C[2][0] - Map.C[0][0])/4, Map.C[0][1] + 3*(Map.C[1][1] - Map.C[0][1])/4]
@@ -55,6 +53,7 @@ def create_trajectory(starting_point, goal_point):
         MISSIONS = {"A": A_point, "B":B_point, "C":C_point, "D":D_point}
 
     trajectory = [i for i in list(MISSIONS.values())[list(MISSIONS.keys()).index(starting_point):list(MISSIONS.keys()).index(goal_point)+1]]
+    print("trajectory is ", trajectory)
     return trajectory
 
 # Function that checks if the 'range' value is smaller than 0.2. 
@@ -127,12 +126,12 @@ def stop_flying(up_ranger):
         print('stop?')
         keep_flying = False
 
-def perform_mision(trajectory):
+def perform_mision(trajectory, clockwise):
     
     global DISTANCE_TO_WALL
     global OTHER_TRAFFIC_DISTANCE
     global TRAFFIC_TYPE
-    global CLOCKWISE
+    #global CLOCKWISE
     global keep_flying
     global obstacle_front
     global obstacle_side
@@ -142,7 +141,9 @@ def perform_mision(trajectory):
     global FULL_URI
     global current_section
 
-    occupancy_grid = np.zeros((80, 120))
+    TRAFFIC_TYPE = clockwise
+    right_traffic = not TRAFFIC_TYPE
+    occupancy_grid = np.zeros((77, 116))
     #occupancy_grid = Map.initialize_map(occupancy_grid)
     last_y, last_x = 0, 0
     counter_time = 11
@@ -303,13 +304,13 @@ def perform_mision(trajectory):
 
                             # LOCALIZATION
                             # Let's compute the current distance of the drone
-                            if counter_time > 1:
-                                t = time.time()
-                                counter_time = 0
+                            #if counter_time > 1:
+                            t = time.time()
+                            #counter_time = 0
                             #t = time.time()
                             dt = t - t_0
                             t_0 = t  
-                            counter_time+=1
+                            #counter_time+=1
                             # Compute delta x: dx = vx.dt
                             if final_velocity_x < 0:
                                 final_velocity_x = 0
@@ -361,34 +362,34 @@ def perform_mision(trajectory):
                             print("x_global_distance-trajectory[counter_checkpoint][0]/10 ", (x_global_distance-trajectory[counter_checkpoint][0]/10)**2)
                             print("y_global_distance-trajectory[counter_checkpoint][1]/10 ", (y_global_distance-trajectory[counter_checkpoint][1]/10)**2)
                             if inside_boundaries(occupancy_grid, y=y_global_distance, x=x_global_distance):
-                                occupancy_grid[last_y, last_x] = 100
+                                occupancy_grid_upd[last_y, last_x] = 100
                             else:
                                 print('fuck you')
                                 keep_flying = False
 
                             # SEND THE SECTION:
                             if right_traffic:
-                                if x_global_distance>=Map.A[0][0]*10 and x_global_distance<=Map.A[2][0]*10 and y_global_distance>=Map.A[1][1] and y_global_distance<=Map.B[0][1]:
-                                    current_section = "BA"
-                                if x_global_distance>=2/3*Map.B[2][0]*10 and x_global_distance<=Map.C[0][0]*10 and y_global_distance>=Map.B[2][1] and y_global_distance<=Map.B[3][1]:
-                                    current_section = "CB3"
-                                if x_global_distance>=1/3*Map.B[2][0]*10 and x_global_distance<=2/3*Map.C[0][0]*10 and y_global_distance>=Map.B[2][1] and y_global_distance<=Map.B[3][1]:
-                                    current_section = "CB2"
-                                if x_global_distance>=Map.B[2][0]*10 and x_global_distance<=1/3*Map.C[0][0]*10 and y_global_distance>=Map.B[2][1] and y_global_distance<=Map.B[3][1]:
-                                    current_section = "CB1"
-                                if x_global_distance>=Map.C[0][0]*10 and x_global_distance<=Map.C[2][0]*10 and y_global_distance>=Map.D[1][1] and y_global_distance<=Map.C[0][1]:
-                                    current_section = "DC"
+                                if x_global_distance>=Map.A[0][0]/10 and x_global_distance<=Map.A[2][0]/10 and y_global_distance>=Map.A[1][1]/10 and y_global_distance<=Map.B[0][1]/10:
+                                    current_section = = "BA"
+                                if x_global_distance>=2/3*Map.B[2][0]/10 and x_global_distance<=Map.C[0][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+                                    current_section = = "CB3"
+                                if x_global_distance>=1/3*Map.B[2][0]/10 and x_global_distance<=2/3*Map.C[0][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+                                    current_section = = "CB2"
+                                if x_global_distance>=Map.B[2][0]/10 and x_global_distance<=1/3*Map.C[0][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+                                    current_section = = "CB1"
+                                if x_global_distance>=Map.C[0][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.D[1][1]/10 and y_global_distance<=Map.C[0][1]/10:
+                                    current_section = = "DC"
                             else:
-                                if x_global_distance>=Map.A[0][0]*10 and x_global_distance<=Map.A[2][0]*10 and y_global_distance>=Map.A[1][1] and y_global_distance<=Map.B[0][1]:
-                                    current_section = "AB"
-                                if x_global_distance>=2/3*Map.B[2][0]*10 and x_global_distance<=Map.C[0][0]*10 and y_global_distance>=Map.B[2][1] and y_global_distance<=Map.B[3][1]:
-                                    current_section = "BC3"
-                                if x_global_distance>=1/3*Map.B[2][0]*10 and x_global_distance<=2/3*Map.C[0][0]*10 and y_global_distance>=Map.B[2][1] and y_global_distance<=Map.B[3][1]:
-                                    current_section = "BC2"
-                                if x_global_distance>=Map.B[2][0]*10 and x_global_distance<=1/3*Map.C[0][0]*10 and y_global_distance>=Map.B[2][1] and y_global_distance<=Map.B[3][1]:
-                                    current_section = "BC1"
-                                if x_global_distance>=Map.C[0][0]*10 and x_global_distance<=Map.C[2][0]*10 and y_global_distance>=Map.D[1][1] and y_global_distance<=Map.C[0][1]:
-                                    current_section = "CD"
+                                if x_global_distance>=Map.A[0][0]/10 and x_global_distance<=Map.A[2][0]/10 and y_global_distance>=Map.A[1][1]/10 and y_global_distance<=Map.B[0][1]/10:
+                                    current_section = = "AB"
+                                if x_global_distance>=2/3*Map.B[2][0]/10 and x_global_distance<=Map.C[0][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+                                    current_section = = "BC3"
+                                if x_global_distance>=1/3*Map.B[2][0]/10 and x_global_distance<=2/3*Map.C[0][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+                                    current_section = = "BC2"
+                                if x_global_distance>=Map.B[2][0]/10 and x_global_distance<=1/3*Map.C[0][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+                                    current_section = = "BC1"
+                                if x_global_distance>=Map.C[0][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.D[1][1]/10 and y_global_distance<=Map.C[0][1]/10:
+                                    current_section = = "CD"
 
                             # If we are going to start the navigation or we are 
                             # changing section, we inform the server.
@@ -427,7 +428,7 @@ def perform_mision(trajectory):
                                 y_drone_distance = 0
                                 initialize_coords = True
                                 checkpoint_reached = False
-                                time.sleep(2)
+                                time.sleep(4)
                                 t_0 = time.time()
                             elif not uas_traffic_conflict:
                                 print('current vel x: ', final_velocity_x)
@@ -449,19 +450,27 @@ def perform_mision(trajectory):
 # Main program loop
 if __name__ == '__main__':
     
+    CLOCKWISE = True
     # Initialize the low-level drivers (don't list the debug drivers)
     cflib.crtp.init_drivers(enable_debug_driver=False)
 
+<<<<<<< HEAD
     # Fake client registrations to check conflict:
     URI2 = 'E7E7E7E7E7'
     URI3 = 'E7E7E7E7E8'
     uas_client.main(URI2, 'BA', '0.3')
     uas_client.main(URI3, 'BC', '0.3')
 
+=======
+>>>>>>> ca2be61cd888b275241d07192cf5748b9e4d97ab
     MISSIONS = [('A', 'C')] # ('A', 'C'), ('C', 'B'), ('B', 'D')
     for mission in MISSIONS:
         starting_point = mission[0]
         goal_point = mission[1]
-        trajectory = create_trajectory(starting_point, goal_point)
+        if starting_point > goal_point:
+            CLOCKWISE = False # True: left to right, False: right to left
+        else:
+            CLOCKWISE = True
+        trajectory = create_trajectory(starting_point, goal_point, CLOCKWISE)
         # Call to perform drone mission
-        perform_mision(trajectory)
+        perform_mision(trajectory, CLOCKWISE)
