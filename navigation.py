@@ -446,6 +446,8 @@ def perform_mision(trajectory, clockwise, starting_point):
                                 print('current vel y: ', final_velocity_y)
                                 print('IT GOES TO MOVE')
                                 motion_commander.start_linear_motion(final_velocity_x, final_velocity_y, 0)
+                            else:
+                                motion_commander.start_linear_motion(0, 0, 0)
                             
                             
 
@@ -470,7 +472,7 @@ if __name__ == '__main__':
     URI2 = 'E7E7E7E7E7'
     URI3 = 'E7E7E7E7E8'
     uas_client.main(URI2, 'BA', '0.3')
-    uas_client.main(URI3, 'BC', '0.3')
+    uas_client.main(URI3, 'BC1', '0.3')
 
     MISSIONS = [('A', 'C')] # ('A', 'C'), ('C', 'B'), ('B', 'D')
     for mission in MISSIONS:
