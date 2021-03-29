@@ -36,6 +36,8 @@ obstacle_side = False
 TOTAL_DISTANCE = 0
 Map = mapping.UpdateMap()
 current_section = ''
+x_map_size = 116
+y_map_size = 77
 
 def create_trajectory(starting_point, goal_point, CLOCKWISE):
 
@@ -68,7 +70,7 @@ def is_close_to_obstacle(range):
 
 def inside_boundaries(occupancy_grid, y=0, x=0):
     grid_size = occupancy_grid.shape
-    return y in range(grid_size[0]-2) and x in range(grid_size[1])
+    return y in range(grid_size[0]-4) and x in range(grid_size[1]-5)
 
 
 def obstacle_avoidance(multi_ranger, velocity_x, velocity_y):
@@ -139,10 +141,12 @@ def perform_mision(trajectory, clockwise, starting_point):
     global URI
     global FULL_URI
     global current_section
+    global x_map_size
+    global y_map_size
 
     TRAFFIC_TYPE = clockwise
     right_traffic = not TRAFFIC_TYPE
-    occupancy_grid = np.zeros((77, 116))
+    occupancy_grid = np.zeros((80, 120))
     last_y, last_x = 0, 0
     counter_checkpoint = 1
     y_check = trajectory[0][1]
@@ -265,25 +269,25 @@ def perform_mision(trajectory, clockwise, starting_point):
                                 x_check = iter_x_check
                                 if right_traffic:
                                     if direction == 'up':
-                                        x_global_distance = float(occupancy_grid.shape[1]-round(multi_ranger.right*10))
+                                        x_global_distance = float(x_map_size-round(multi_ranger.right*10))
                                         y_global_distance = float(multi_ranger.back*10)
                                     elif direction == 'down':
                                         x_global_distance = float(round(multi_ranger.right*10))
-                                        y_global_distance = float(occupancy_grid.shape[0]-round(multi_ranger.back*10))
+                                        y_global_distance = float(y_map_size-round(multi_ranger.back*10))
                                     elif direction == 'left':
-                                        x_global_distance = float(occupancy_grid.shape[1]-round(multi_ranger.back*10))
-                                        y_global_distance = float(occupancy_grid.shape[0]-round(multi_ranger.right*10))
-                                    #x_global_distance = float(occupancy_grid.shape[1]-round(multi_ranger.right*10))
+                                        x_global_distance = float(x_map_size-round(multi_ranger.back*10))
+                                        y_global_distance = float(y_map_size-round(multi_ranger.right*10))
+                                    #x_global_distance = float(x_map_size-round(multi_ranger.right*10))
                                 else:
                                     if direction == 'up':
                                         x_global_distance = float(multi_ranger.left*10)
                                         y_global_distance = float(multi_ranger.back*10)
                                     elif direction == 'down':
-                                        x_global_distance = float(occupancy_grid.shape[1]-round(multi_ranger.left*10))
-                                        y_global_distance = float(occupancy_grid.shape[0]-round(multi_ranger.back*10))
+                                        x_global_distance = float(x_map_size-round(multi_ranger.left*10))
+                                        y_global_distance = float(y_map_size-round(multi_ranger.back*10))
                                     elif direction == 'right':
                                         x_global_distance = float(multi_ranger.back*10)
-                                        y_global_distance = float(occupancy_grid.shape[0]-round(multi_ranger.left*10))
+                                        y_global_distance = float(y_map_size-round(multi_ranger.left*10))
                                     #x_global_distance = float(multi_ranger.left*10)
                                 #y_global_distance = float(multi_ranger.back*10)
                                 initial_y = y_global_distance
@@ -327,29 +331,29 @@ def perform_mision(trajectory, clockwise, starting_point):
                             if right_traffic:
                                 if direction == 'up':
                                     y_global_distance = initial_y + x_drone_distance
-                                    x_global_distance = occupancy_grid.shape[1] - traffic_flow_multi_ranger*10
+                                    x_global_distance = x_map_size - traffic_flow_multi_ranger*10
                                 elif direction == 'down':
                                     y_global_distance = initial_y - x_drone_distance
                                     x_global_distance = traffic_flow_multi_ranger*10
                                 elif direction == 'left':
                                     x_global_distance = initial_x - x_drone_distance
-                                    y_global_distance = occupancy_grid.shape[0] - traffic_flow_multi_ranger*10
+                                    y_global_distance = y_map_size - traffic_flow_multi_ranger*10
                                 elif direction == 'right':
                                     x_global_distance = initial_x + x_drone_distance
-                                    y_global_distance = occupancy_grid.shape[0] - traffic_flow_multi_ranger*10
+                                    y_global_distance = y_map_size - traffic_flow_multi_ranger*10
                             else:
                                 if direction == 'up':
                                     y_global_distance = initial_y + x_drone_distance
                                     x_global_distance = traffic_flow_multi_ranger*10
                                 elif direction == 'down':
                                     y_global_distance = initial_y - x_drone_distance
-                                    x_global_distance = occupancy_grid.shape[1] - traffic_flow_multi_ranger*10
+                                    x_global_distance = x_map_size - traffic_flow_multi_ranger*10
                                 elif direction == 'left':
                                     x_global_distance = initial_x - x_drone_distance
-                                    y_global_distance = occupancy_grid.shape[0] - traffic_flow_multi_ranger*10
+                                    y_global_distance = y_map_size - traffic_flow_multi_ranger*10
                                 elif direction == 'right':
                                     x_global_distance = initial_x + x_drone_distance
-                                    y_global_distance = occupancy_grid.shape[0] - traffic_flow_multi_ranger*10
+                                    y_global_distance = y_map_size - traffic_flow_multi_ranger*10
                             y_global_distance = round(y_global_distance)
                             x_global_distance = round(x_global_distance)
                             print('I am in the Y: %s and X: %s' % (y_global_distance, x_global_distance))
@@ -357,7 +361,7 @@ def perform_mision(trajectory, clockwise, starting_point):
                             print("x_global_distance-trajectory[counter_checkpoint][0]/10 ", (x_global_distance-trajectory[counter_checkpoint][0]/10)**2)
                             print("y_global_distance-trajectory[counter_checkpoint][1]/10 ", (y_global_distance-trajectory[counter_checkpoint][1]/10)**2)
                             if inside_boundaries(occupancy_grid, y=y_global_distance, x=x_global_distance):
-                                occupancy_grid_upd[last_y, last_x] = 100
+                                occupancy_grid[last_y, last_x] = 100
                             else:
                                 print('fuck you')
                                 keep_flying = False
@@ -453,7 +457,7 @@ if __name__ == '__main__':
     # Fake client registrations to check conflict:
     URI2 = 'E7E7E7E7E7'
     URI3 = 'E7E7E7E7E8'
-    uas_client.main(URI2, 'AB', '0.3')
+    uas_client.main(URI2, 'BA', '0.3')
     uas_client.main(URI3, 'BC', '0.3')
 
     MISSIONS = [('A', 'C')] # ('A', 'C'), ('C', 'B'), ('B', 'D')
