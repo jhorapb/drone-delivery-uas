@@ -149,6 +149,7 @@ def perform_mision(trajectory, clockwise, starting_point):
     x_check = trajectory[0][0]
     uas_traffic_conflict = False
     current_section = starting_point
+    measure_ranger = False
 
     # Create a synchronous connection with the UAS, UAS is now known as 'scf'
     with SyncCrazyflie(FULL_URI) as scf:
@@ -360,7 +361,7 @@ def perform_mision(trajectory, clockwise, starting_point):
                                 occupancy_grid_upd[last_y, last_x] = 100
                             else:
                                 print('fuck you')
-                                keep_flying = False
+                                #keep_flying = False
 
                             # SEND THE SECTION:
                             if right_traffic:
@@ -401,16 +402,34 @@ def perform_mision(trajectory, clockwise, starting_point):
                             # If we are going to start the navigation or we are 
                             # changing section, we inform the server.
                             print('***Talking to the server...***')
-                            uas_traffic_conflict = uas_client.main(URI, current_section, height)
+                            #uas_traffic_conflict = uas_client.main(URI, current_section, height)
                             
                             # CHECK IF REACHED CHECKPOINT
-                            if (direction == 'up' or direction == 'down') and abs(y_global_distance-trajectory[counter_checkpoint][1]/10) < 1:
-                                print('Reached the next checkpoint by mapping (Vertical)')
-                                checkpoint_reached = True
-                            elif (direction == 'left' or direction == 'right') and abs(x_global_distance-trajectory[counter_checkpoint][0]/10) < 1:
+                            print("y_global_distance ", y_global_distance)
+                            print("trajectory[counter_checkpoint][1]/10 ", trajectory[counter_checkpoint][1]/10)
+                            if (direction == 'up' or direction == 'down') and abs(y_global_distance-trajectory[counter_checkpoint][1]/10) < 4:
+                                print("multi_ranger.front is ", multi_ranger.front)
+                                measure_ranger = True
+                            elif (direction == 'left' or direction == 'right') and abs(x_global_distance-trajectory[counter_checkpoint][0]/10) < 4:
                                 print('Reached the next checkpoint by mapping (Horizontal)')
-                                checkpoint_reached = True
-
+                                measure_ranger = True
+                                #if right_traffic:
+                                #    if multi_ranger.front <= 0.5:
+                                        
+                                #        checkpoint_reached = True
+                                #else:
+                                #    if multi_ranger.front <= 1.5:
+                                #        print('Reached the next checkpoint by mapping (Horizontal)')
+                                #        checkpoint_reached = True
+                            if measure_ranger:
+                                if right_traffic:
+                                    if multi_ranger.front <= 0.5:
+                                        print('Reached the next checkpoint by mapping (Vertical)')
+                                        checkpoint_reached = True
+                                else:
+                                    if multi_ranger.front <= 1.5:
+                                        print('Reached the next checkpoint by mapping (Vertical)')
+                                        checkpoint_reached = True
                             if checkpoint_reached:
                                 if right_traffic:
                                     print('the turn left')
@@ -425,6 +444,7 @@ def perform_mision(trajectory, clockwise, starting_point):
                                 checkpoint_reached = False
                                 time.sleep(4)
                                 t_0 = time.time()
+                                measure_ranger = False
                             elif not uas_traffic_conflict:
                                 print('current vel x: ', final_velocity_x)
                                 print('current vel y: ', final_velocity_y)
