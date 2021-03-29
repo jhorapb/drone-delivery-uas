@@ -23,7 +23,7 @@ URI = 'radio://0/80/2M/E7E7E7E7E9'
 logging.basicConfig(level=logging.ERROR)
 
 # Control constants
-CLOCKWISE = True # True: left to right, False: right to left
+CLOCKWISE = False # True: left to right, False: right to left
 TRAFFIC_TYPE = CLOCKWISE
 right_traffic = not TRAFFIC_TYPE
 VELOCITY = 0.3 # (m/s) Define speed increment
@@ -67,7 +67,7 @@ def is_close_to_obstacle(range):
 
 def inside_boundaries(occupancy_grid, y=0, x=0):
     grid_size = occupancy_grid.shape
-    return y in range(grid_size[0]-3) and x in range(grid_size[1])
+    return y in range(grid_size[0]-2) and x in range(grid_size[1])
 
 
 def obstacle_avoidance(multi_ranger, velocity_x, velocity_y):
@@ -140,6 +140,7 @@ def perform_mision(trajectory):
     occupancy_grid = np.zeros((80, 120))
     #occupancy_grid = Map.initialize_map(occupancy_grid)
     last_y, last_x = 0, 0
+    counter_time = 11
     # y_global_distance, x_global_distance = 0, 20
     initialized_x_y = True
 
@@ -283,26 +284,34 @@ def perform_mision(trajectory):
                                 #y_global_distance = float(multi_ranger.back*10)
                                 initial_y = y_global_distance
                                 initial_x = x_global_distance
+                                print("direction is ", direction)
                                 print("initial_y ", initial_y)
                                 print("initial_x ", initial_x)
                                 initialize_coords = False
+                                initialized_x_y = False
                                 #if not counter_checkpoint == 1:
                                 #    checkpoint_reached = True
 
 
                             # LOCALIZATION
                             # Let's compute the current distance of the drone
-                            t = time.time()
+                            if counter_time > 1:
+                                t = time.time()
+                                counter_time = 0
+                            #t = time.time()
                             dt = t - t_0
-                            t_0 = t                         
+                            t_0 = t  
+                            counter_time+=1
                             # Compute delta x: dx = vx.dt
                             if final_velocity_x < 0:
                                 final_velocity_x = 0
-                            dx = math.sqrt(final_velocity_x**2 + final_velocity_y**2) * math.cos(math.atan(final_velocity_y/final_velocity_x)) * dt
+                            dx = math.sqrt(final_velocity_x**2 + final_velocity_y**2) * math.cos(math.atan2(final_velocity_y,final_velocity_x)) * dt
                             # Compute delta y: dy = vy.dt
                             dy = velocity_y * dt
-                            x_drone_distance += dx*10
-                            y_drone_distance += dy*10
+                            if initialized_x_y:
+                                x_drone_distance += dx*10
+                                y_drone_distance += dy*10
+                            initialized_x_y = True
                             #if x_drone_distance_temp > 0.2:
                             #    x_drone_distance = x_drone_distance_temp
                             #    x_drone_distance_temp = 0
@@ -368,15 +377,23 @@ def perform_mision(trajectory):
                             if right_traffic:
                                 if x_global_distance>=Map.A[0][0]*10 and x_global_distance<=Map.A[2][0]*10 and y_global_distance>=Map.A[1][1] and y_global_distance<=Map.B[0][1]:
                                     section = "BA"
-                                if x_global_distance>=Map.B[2][0]*10 and x_global_distance<=Map.C[0][0]*10 and y_global_distance>=Map.B[2][1] and y_global_distance<=Map.B[3][1]:
-                                    section = "CB"
+                                if x_global_distance>=2/3*Map.B[2][0]*10 and x_global_distance<=Map.C[0][0]*10 and y_global_distance>=Map.B[2][1] and y_global_distance<=Map.B[3][1]:
+                                    section = "CB3"
+                                if x_global_distance>=1/3*Map.B[2][0]*10 and x_global_distance<=2/3*Map.C[0][0]*10 and y_global_distance>=Map.B[2][1] and y_global_distance<=Map.B[3][1]:
+                                    section = "CB2"
+                                if x_global_distance>=Map.B[2][0]*10 and x_global_distance<=1/3*Map.C[0][0]*10 and y_global_distance>=Map.B[2][1] and y_global_distance<=Map.B[3][1]:
+                                    section = "CB1"
                                 if x_global_distance>=Map.C[0][0]*10 and x_global_distance<=Map.C[2][0]*10 and y_global_distance>=Map.D[1][1] and y_global_distance<=Map.C[0][1]:
                                     section = "DC"
                             else:
                                 if x_global_distance>=Map.A[0][0]*10 and x_global_distance<=Map.A[2][0]*10 and y_global_distance>=Map.A[1][1] and y_global_distance<=Map.B[0][1]:
                                     section = "AB"
-                                if x_global_distance>=Map.B[2][0]*10 and x_global_distance<=Map.C[0][0]*10 and y_global_distance>=Map.B[2][1] and y_global_distance<=Map.B[3][1]:
-                                    section = "BC"
+                                if x_global_distance>=2/3*Map.B[2][0]*10 and x_global_distance<=Map.C[0][0]*10 and y_global_distance>=Map.B[2][1] and y_global_distance<=Map.B[3][1]:
+                                    section = "BC3"
+                                if x_global_distance>=1/3*Map.B[2][0]*10 and x_global_distance<=2/3*Map.C[0][0]*10 and y_global_distance>=Map.B[2][1] and y_global_distance<=Map.B[3][1]:
+                                    section = "BC2"
+                                if x_global_distance>=Map.B[2][0]*10 and x_global_distance<=1/3*Map.C[0][0]*10 and y_global_distance>=Map.B[2][1] and y_global_distance<=Map.B[3][1]:
+                                    section = "BC1"
                                 if x_global_distance>=Map.C[0][0]*10 and x_global_distance<=Map.C[2][0]*10 and y_global_distance>=Map.D[1][1] and y_global_distance<=Map.C[0][1]:
                                     section = "CD"
 
@@ -438,7 +455,7 @@ if __name__ == '__main__':
     # Initialize the low-level drivers (don't list the debug drivers)
     cflib.crtp.init_drivers(enable_debug_driver=False)
 
-    MISSIONS = [('A', 'C')] # ('A', 'C'), ('C', 'B'), ('B', 'D')
+    MISSIONS = [('D', 'B')] # ('A', 'C'), ('C', 'B'), ('B', 'D')
     for mission in MISSIONS:
         starting_point = mission[0]
         goal_point = mission[1]
