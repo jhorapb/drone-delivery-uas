@@ -15,9 +15,11 @@ from cflib.utils.multiranger import Multiranger
 # Custom modules
 #import initial_map as mapping
 import update_map_2 as mapping
+import server_client.asu_udp_client2 as uas_client
 
 # Unique radio link identifier between computer and Craziflie UAS
-URI = 'radio://0/80/2M/E7E7E7E7E9'
+URI = 'E7E7E7E7E9'
+FULL_URI = 'radio://0/80/2M/%s' % (URI,)
 
 # Only output errors from the logging framework
 logging.basicConfig(level=logging.ERROR)
@@ -33,6 +35,7 @@ obstacle_front = False
 obstacle_side = False
 TOTAL_DISTANCE = 0
 Map = mapping.UpdateMap()
+current_section = ''
 
 def create_trajectory(starting_point, goal_point, CLOCKWISE):
 
@@ -123,45 +126,42 @@ def stop_flying(up_ranger):
         print('stop?')
         keep_flying = False
 
-def perform_mision(trajectory, clockwise):
+def perform_mision(trajectory, clockwise, starting_point):
     
     global DISTANCE_TO_WALL
     global OTHER_TRAFFIC_DISTANCE
     global TRAFFIC_TYPE
-    #global CLOCKWISE
     global keep_flying
     global obstacle_front
     global obstacle_side
     global TOTAL_DISTANCE
     global counter_checkpoint
+    global URI
+    global FULL_URI
+    global current_section
 
     TRAFFIC_TYPE = clockwise
     right_traffic = not TRAFFIC_TYPE
     occupancy_grid = np.zeros((77, 116))
-    #occupancy_grid = Map.initialize_map(occupancy_grid)
     last_y, last_x = 0, 0
-    counter_time = 11
-    # y_global_distance, x_global_distance = 0, 20
-    initialized_x_y = True
-
     counter_checkpoint = 1
     y_check = trajectory[0][1]
     x_check = trajectory[0][0]
+    uas_traffic_conflict = False
+    current_section = starting_point
 
     # Create a synchronous connection with the UAS, UAS is now known as 'scf'
-    with SyncCrazyflie(URI) as scf:
-        
-        # Create a motion commandor (tools that let's you change the motion of the UAS) for 'scf'
-        with MotionCommander(scf, 0.2) as motion_commander:
+    with SyncCrazyflie(FULL_URI) as scf:
+        height = 0.2
+        # Create a motion commandor (tool that let's you change the motion of the UAS) for 'scf'
+        with MotionCommander(scf, height) as motion_commander:
             
             # Take off
             print('Taking off! -by default up to 0.3m-')
             
-            # print('Moving up 1.0m at 0.2m/s')
-            # motion_commander.up(1.0, 0.2)
-            
             print('TRAFFIC TYPE: ', TRAFFIC_TYPE, 
                 'Clockwise' if TRAFFIC_TYPE else 'Counterclockwise')
+            
             # Wait a bit (i.e. 5 seconds) before doing the next step
             time.sleep(5)
 
@@ -197,7 +197,7 @@ def perform_mision(trajectory, clockwise):
                 initialize_coords = True
                 checkpoint_reached = False
 
-                while keep_flying: # and counter < 80:
+                while keep_flying:
                     
                     Map.Update_map(occupancy_grid_upd, Occ_Map)
                     obstacle_front = False
@@ -237,6 +237,10 @@ def perform_mision(trajectory, clockwise):
                         # Define x and y velocity
                         final_velocity_x = velocity_x if obstacle_front else forward_velocity
                         final_velocity_y = velocity_y if obstacle_side else velocity_wall
+
+                        if uas_traffic_conflict:
+                            final_velocity_x = 0
+                            final_velocity_y = 0
 
                         print('Moving forward at velocity of ', final_velocity_x)
 
@@ -308,20 +312,9 @@ def perform_mision(trajectory, clockwise):
                             dx = math.sqrt(final_velocity_x**2 + final_velocity_y**2) * math.cos(math.atan2(final_velocity_y,final_velocity_x)) * dt
                             # Compute delta y: dy = vy.dt
                             dy = velocity_y * dt
-                            if initialized_x_y:
-                                x_drone_distance += dx*10
-                                y_drone_distance += dy*10
-                            initialized_x_y = True
-                            #if x_drone_distance_temp > 0.2:
-                            #    x_drone_distance = x_drone_distance_temp
-                            #    x_drone_distance_temp = 0
-                            #else:
-                            #    x_drone_distance = 0
-                            #if y_drone_distance_temp > 0.2:
-                            #    y_drone_distance = y_drone_distance_temp
-                            #    y_drone_distance_temp = 0
-                            #else:
-                            #    y_drone_distance = 0
+                            x_drone_distance += dx*10
+                            y_drone_distance += dy*10
+
                             print('Distance in X meters:', x_drone_distance/10)
                             # print('Distance in Y meters:', y_drone_distance)
 
@@ -329,11 +322,7 @@ def perform_mision(trajectory, clockwise):
                             # y0_distance = traffic_flow_multi_ranger
                             # x0_distance = multi_ranger.front
                             # if x_distance > (x0_distance + dx):
-
-                            # For 0.1 seconds
-                            # to try different frequency
-                            #time.sleep(0.1)
-                            # Check this. it goes too fast
+                            
                             print('->->-> Forward cells', x_drone_distance)
                             if right_traffic:
                                 if direction == 'up':
@@ -409,25 +398,18 @@ def perform_mision(trajectory, clockwise):
                                     else:
                                         current_section = "BC3"
 
+                            # If we are going to start the navigation or we are 
+                            # changing section, we inform the server.
+                            print('***Talking to the server...***')
+                            uas_traffic_conflict = uas_client.main(URI, current_section, height)
+                            
                             # CHECK IF REACHED CHECKPOINT
                             if (direction == 'up' or direction == 'down') and abs(y_global_distance-trajectory[counter_checkpoint][1]/10) < 1:
-                                print('Reached the next checkpoint by mapping')
+                                print('Reached the next checkpoint by mapping (Vertical)')
                                 checkpoint_reached = True
-                            elif (direction == 'left' or direction == 'right') and abs(x_global_distance-trajectory[counter_checkpoint][0]/10) <1:
-                                print('Reached the next checkpoint by mapping')
+                            elif (direction == 'left' or direction == 'right') and abs(x_global_distance-trajectory[counter_checkpoint][0]/10) < 1:
+                                print('Reached the next checkpoint by mapping (Horizontal)')
                                 checkpoint_reached = True
-                            #if ((x_global_distance-trajectory[counter_checkpoint][0]/10)**2 + (y_global_distance-trajectory[counter_checkpoint][1]/10)**2 < 1):
-                            #    print('Reached the next checkpoint by mapping')
-                            #    checkpoint_reached = True
-                            #elif (x_global_distance-trajectory[counter_checkpoint][0]/10)**2 + (y_global_distance-trajectory[counter_checkpoint][1]/10)**2 < 4:
-                            #    if obstacle_front:
-                            #        checkpoint_reached = True
-                            #        print('Reached the next checkpoint by ranger')
-                            #    else:
-                            #        print('current vel x: ', final_velocity_x)
-                            #        print('current vel y: ', final_velocity_y)
-                            #        motion_commander.start_linear_motion(final_velocity_x, final_velocity_y, 0)
-                            
 
                             if checkpoint_reached:
                                 if right_traffic:
@@ -443,9 +425,10 @@ def perform_mision(trajectory, clockwise):
                                 checkpoint_reached = False
                                 time.sleep(4)
                                 t_0 = time.time()
-                            else:
+                            elif not uas_traffic_conflict:
                                 print('current vel x: ', final_velocity_x)
                                 print('current vel y: ', final_velocity_y)
+                                print('IT GOES TO MOVE')
                                 motion_commander.start_linear_motion(final_velocity_x, final_velocity_y, 0)
                             
                             
@@ -456,7 +439,6 @@ def perform_mision(trajectory, clockwise):
                         #print('keep_flying', keep_flying)
                     print('traffic flow ranger:', traffic_flow_multi_ranger)
                     
-                    counter += 1
                     #mapping.plot_grid(occupancy_grid)
     
     #mapping.plot_map(map_occupancy_grid)
@@ -468,6 +450,12 @@ if __name__ == '__main__':
     # Initialize the low-level drivers (don't list the debug drivers)
     cflib.crtp.init_drivers(enable_debug_driver=False)
 
+    # Fake client registrations to check conflict:
+    URI2 = 'E7E7E7E7E7'
+    URI3 = 'E7E7E7E7E8'
+    uas_client.main(URI2, 'AB', '0.3')
+    uas_client.main(URI3, 'BC', '0.3')
+
     MISSIONS = [('A', 'C')] # ('A', 'C'), ('C', 'B'), ('B', 'D')
     for mission in MISSIONS:
         starting_point = mission[0]
@@ -478,4 +466,4 @@ if __name__ == '__main__':
             CLOCKWISE = True
         trajectory = create_trajectory(starting_point, goal_point, CLOCKWISE)
         # Call to perform drone mission
-        perform_mision(trajectory, CLOCKWISE)
+        perform_mision(trajectory, CLOCKWISE, starting_point)
