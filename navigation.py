@@ -25,8 +25,7 @@ FULL_URI = 'radio://0/80/2M/%s' % (URI,)
 logging.basicConfig(level=logging.ERROR)
 
 # Control constants
-CLOCKWISE = False # True: left to right, False: right to left
-TRAFFIC_TYPE = CLOCKWISE
+TRAFFIC_TYPE = True # True: left to right (Clockwise), False: right to left (Counterclockwise)
 right_traffic = not TRAFFIC_TYPE
 VELOCITY = 0.3 # (m/s) Define speed increment
 TOTAL_WIDTH = 2
@@ -202,7 +201,7 @@ def perform_mision(trajectory):
                 initialize_coords = True
                 checkpoint_reached = False
 
-                while keep_flying: # and counter < 80:
+                while keep_flying:
                     
                     Map.Update_map(occupancy_grid_upd, Occ_Map)
                     obstacle_front = False
@@ -443,7 +442,6 @@ def perform_mision(trajectory):
                         #print('keep_flying', keep_flying)
                     print('traffic flow ranger:', traffic_flow_multi_ranger)
                     
-                    counter += 1
                     #mapping.plot_grid(occupancy_grid)
     
     #mapping.plot_map(map_occupancy_grid)
@@ -460,7 +458,7 @@ if __name__ == '__main__':
     uas_client.main(URI2, 'BA', '0.3')
     uas_client.main(URI3, 'BC', '0.3')
 
-    MISSIONS = [('D', 'B')] # ('A', 'C'), ('C', 'B'), ('B', 'D')
+    MISSIONS = [('A', 'C')] # ('A', 'C'), ('C', 'B'), ('B', 'D')
     for mission in MISSIONS:
         starting_point = mission[0]
         goal_point = mission[1]
