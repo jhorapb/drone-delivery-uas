@@ -364,52 +364,52 @@ def perform_mision(trajectory, clockwise, starting_point):
 
                             # SEND THE SECTION:
                             if right_traffic:
-                                if x_global_distance>=Map.A[0][0]/10 and x_global_distance<=Map.A[2][0]/10 and y_global_distance>=Map.A[1][1]/10 and y_global_distance<=Map.B[0][1]/10:
+                                if x_global_distance>=Map.A[0][0]/10 and x_global_distance<=Map.A[2][0]/10 and y_global_distance>=Map.A[0][1]/10 and y_global_distance<=Map.B[1][1]/10:
                                     current_section = "BA"
-                                if x_global_distance>=2/3*Map.B[2][0]/10 and x_global_distance<=Map.C[0][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+                                if x_global_distance>=2/3*Map.B[1][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
                                     current_section = "CB3"
-                                if x_global_distance>=1/3*Map.B[2][0]/10 and x_global_distance<=2/3*Map.C[0][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+                                if x_global_distance>=1/3*Map.B[1][0]/10 and x_global_distance<=2/3*Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
                                     current_section = "CB2"
-                                if x_global_distance>=Map.B[2][0]/10 and x_global_distance<=1/3*Map.C[0][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
-                                    current_section = "CB1"
-                                if x_global_distance>=Map.C[0][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.D[1][1]/10 and y_global_distance<=Map.C[0][1]/10:
-                                    current_section = "DC"
+                                if x_global_distance>=Map.B[1][0]/10 and x_global_distance<=1/3*Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+                                    if direction == "left":
+                                        current_section = "CB1"
+                                    else:
+                                        current_section = "BA"
+                                if x_global_distance>=Map.C[0][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.D[0][1]/10 and y_global_distance<=Map.C[1][1]/10:
+                                    if direction == "up":
+                                        current_section = "DC"
+                                    else:
+                                        current_section = "CB3"
                             else:
-                                if x_global_distance>=Map.A[0][0]/10 and x_global_distance<=Map.A[2][0]/10 and y_global_distance>=Map.A[1][1]/10 and y_global_distance<=Map.B[0][1]/10:
+                                if x_global_distance>=Map.A[0][0]/10 and x_global_distance<=Map.A[2][0]/10 and y_global_distance>=Map.A[0][1]/10 and y_global_distance<=Map.B[1][1]/10:
                                     current_section = "AB"
-                                if x_global_distance>=2/3*Map.B[2][0]/10 and x_global_distance<=Map.C[0][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+                                if x_global_distance>=2/3*Map.B[1][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
                                     current_section = "BC3"
-                                if x_global_distance>=1/3*Map.B[2][0]/10 and x_global_distance<=2/3*Map.C[0][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+                                if x_global_distance>=1/3*Map.B[1][0]/10 and x_global_distance<=2/3*Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
                                     current_section = "BC2"
-                                if x_global_distance>=Map.B[2][0]/10 and x_global_distance<=1/3*Map.C[0][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
-                                    current_section = "BC1"
-                                if x_global_distance>=Map.C[0][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.D[1][1]/10 and y_global_distance<=Map.C[0][1]/10:
-                                    current_section = "CD"
+                                if x_global_distance>=Map.B[1][0]/10 and x_global_distance<=1/3*Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+                                    if direction == "right":
+                                        current_section = "BC1"
+                                    else:
+                                        current_section = "AB"
+                                if x_global_distance>=Map.C[0][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.D[0][1]/10 and y_global_distance<=Map.C[1][1]/10:
+                                    if direction == "down":
+                                        current_section = "CD"
+                                    else:
+                                        current_section = "BC3"
 
                             # If we are going to start the navigation or we are 
                             # changing section, we inform the server.
                             print('***Talking to the server...***')
                             uas_traffic_conflict = uas_client.main(URI, current_section, height)
-
+                            
                             # CHECK IF REACHED CHECKPOINT
                             if (direction == 'up' or direction == 'down') and abs(y_global_distance-trajectory[counter_checkpoint][1]/10) < 1:
-                                print('Reached the next checkpoint by mapping')
+                                print('Reached the next checkpoint by mapping (Vertical)')
                                 checkpoint_reached = True
-                            elif (direction == 'left' or direction == 'right') and abs(x_global_distance-trajectory[counter_checkpoint][0]/10) <1:
-                                print('Reached the next checkpoint by mapping')
+                            elif (direction == 'left' or direction == 'right') and abs(x_global_distance-trajectory[counter_checkpoint][0]/10) < 1:
+                                print('Reached the next checkpoint by mapping (Horizontal)')
                                 checkpoint_reached = True
-                            #if ((x_global_distance-trajectory[counter_checkpoint][0]/10)**2 + (y_global_distance-trajectory[counter_checkpoint][1]/10)**2 < 1):
-                            #    print('Reached the next checkpoint by mapping')
-                            #    checkpoint_reached = True
-                            #elif (x_global_distance-trajectory[counter_checkpoint][0]/10)**2 + (y_global_distance-trajectory[counter_checkpoint][1]/10)**2 < 4:
-                            #    if obstacle_front:
-                            #        checkpoint_reached = True
-                            #        print('Reached the next checkpoint by ranger')
-                            #    else:
-                            #        print('current vel x: ', final_velocity_x)
-                            #        print('current vel y: ', final_velocity_y)
-                            #        motion_commander.start_linear_motion(final_velocity_x, final_velocity_y, 0)
-                            
 
                             if checkpoint_reached:
                                 if right_traffic:
