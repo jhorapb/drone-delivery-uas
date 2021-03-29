@@ -375,27 +375,39 @@ def perform_mision(trajectory, clockwise):
 
                             # SEND THE SECTION:
                             if right_traffic:
-                                if x_global_distance>=Map.A[0][0]/10 and x_global_distance<=Map.A[2][0]/10 and y_global_distance>=Map.A[1][1]/10 and y_global_distance<=Map.B[0][1]/10:
-                                    section = "BA"
-                                if x_global_distance>=2/3*Map.B[2][0]/10 and x_global_distance<=Map.C[0][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
-                                    section = "CB3"
-                                if x_global_distance>=1/3*Map.B[2][0]/10 and x_global_distance<=2/3*Map.C[0][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
-                                    section = "CB2"
-                                if x_global_distance>=Map.B[2][0]/10 and x_global_distance<=1/3*Map.C[0][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
-                                    section = "CB1"
-                                if x_global_distance>=Map.C[0][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.D[1][1]/10 and y_global_distance<=Map.C[0][1]/10:
-                                    section = "DC"
+                                if x_global_distance>=Map.A[0][0]/10 and x_global_distance<=Map.A[2][0]/10 and y_global_distance>=Map.A[0][1]/10 and y_global_distance<=Map.B[1][1]/10:
+                                    current_section = "BA"
+                                if x_global_distance>=2/3*Map.B[1][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+                                    current_section = "CB3"
+                                if x_global_distance>=1/3*Map.B[1][0]/10 and x_global_distance<=2/3*Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+                                    current_section = "CB2"
+                                if x_global_distance>=Map.B[1][0]/10 and x_global_distance<=1/3*Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+                                    if direction == "left":
+                                        current_section = "CB1"
+                                    else:
+                                        current_section = "BA"
+                                if x_global_distance>=Map.C[0][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.D[0][1]/10 and y_global_distance<=Map.C[1][1]/10:
+                                    if direction == "up":
+                                        current_section = "DC"
+                                    else:
+                                        current_section = "CB3"
                             else:
-                                if x_global_distance>=Map.A[0][0]/10 and x_global_distance<=Map.A[2][0]/10 and y_global_distance>=Map.A[1][1]/10 and y_global_distance<=Map.B[0][1]/10:
-                                    section = "AB"
-                                if x_global_distance>=2/3*Map.B[2][0]/10 and x_global_distance<=Map.C[0][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
-                                    section = "BC3"
-                                if x_global_distance>=1/3*Map.B[2][0]/10 and x_global_distance<=2/3*Map.C[0][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
-                                    section = "BC2"
-                                if x_global_distance>=Map.B[2][0]/10 and x_global_distance<=1/3*Map.C[0][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
-                                    section = "BC1"
-                                if x_global_distance>=Map.C[0][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.D[1][1]/10 and y_global_distance<=Map.C[0][1]/10:
-                                    section = "CD"
+                                if x_global_distance>=Map.A[0][0]/10 and x_global_distance<=Map.A[2][0]/10 and y_global_distance>=Map.A[0][1]/10 and y_global_distance<=Map.B[1][1]/10:
+                                    current_section = "AB"
+                                if x_global_distance>=2/3*Map.B[1][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+                                    current_section = "BC3"
+                                if x_global_distance>=1/3*Map.B[1][0]/10 and x_global_distance<=2/3*Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+                                    current_section = "BC2"
+                                if x_global_distance>=Map.B[1][0]/10 and x_global_distance<=1/3*Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+                                    if direction == "right":
+                                        current_section = "BC1"
+                                    else:
+                                        current_section = "AB"
+                                if x_global_distance>=Map.C[0][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.D[0][1]/10 and y_global_distance<=Map.C[1][1]/10:
+                                    if direction == "down":
+                                        current_section = "CD"
+                                    else:
+                                        current_section = "BC3"
 
                             # CHECK IF REACHED CHECKPOINT
                             if (direction == 'up' or direction == 'down') and abs(y_global_distance-trajectory[counter_checkpoint][1]/10) < 1:
