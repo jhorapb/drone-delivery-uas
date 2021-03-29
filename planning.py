@@ -30,6 +30,7 @@ else:
 
 
 trajectory = [i for i in list(MISSIONS.values())[list(MISSIONS.keys()).index(starting_point):list(MISSIONS.keys()).index(goal_point)+1]]
+trajectory = [(i[0]/10, i[1]/10) for i in range(trajectory)]
 print(trajectory)
 
 ## HERE IS THE LOGIC OF HOW WE SHOULD USE THE PLANNING, INTEGRATED INTO THE NAVIGATION

@@ -23,12 +23,10 @@ class UpdateMap:
         print(self.map_coords)
         self.C_Clockwise = False
 
-        self.x_size = 1200
-        self.y_size = 800
-        occupancy_grid = np.zeros((self.coord2cell(self.y_size), self.coord2cell(self.x_size)))
 
 
-    def plot_grid(self):
+
+    def plot_grid(self, occupancy_grid_upd):
         # Set plot to animated
         plt.ion() 
         # Define a figure box of certain size
@@ -36,19 +34,22 @@ class UpdateMap:
         matplotlib.rc('ytick', labelsize=5)
         plt.figure(figsize=(10.0, 11.5))
         plt.title("Drone map")
-        occupancy_grid_upd = self.initialize_map(occupancy_grid)
+        #occupancy_grid_upd = self.initialize_map(occupancy_grid)
         self.Occ_Map = plt.imshow(occupancy_grid_upd, cmap="gray")
         plt.gca().invert_yaxis()
         plt.grid(linestyle = '--', linewidth = 0.2)
 
         while True:
-            self.Update_map(occupancy_grid_upd)
+            self.Update_map(occupancy_grid_upd, Occ_Map)
             plt.pause(0.01)
         
     def coord2cell(self, coord):
         return round(coord/self.grid_size)
 
     def initialize_map(self, occupancy_grid):
+        self.x_size = 1200
+        self.y_size = 800
+        occupancy_grid = np.zeros((self.coord2cell(self.y_size), self.coord2cell(self.x_size)))
         ## Create horizontal lines
         for j in range(self.coord2cell(self.y_size)):
             matching_couples = [item for item in self.map_coords if self.coord2cell(item[1]) == j]
@@ -135,9 +136,9 @@ class UpdateMap:
         return occupancy_grid
 
 
-    def Update_map(self, occupancy_grid_upd):
+    def Update_map(self, occupancy_grid_upd, Occ_Map):
         #occupancy_grid[0, 0] = 0
-        self.Occ_Map.set_data(occupancy_grid_upd)
+        Occ_Map.set_data(occupancy_grid_upd)
         plt.draw()
         plt.pause(0.01)
 
