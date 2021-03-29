@@ -200,6 +200,7 @@ def perform_mision(trajectory, clockwise, starting_point):
                 plt.grid(linestyle = '--', linewidth = 0.2)
                 initialize_coords = True
                 checkpoint_reached = False
+                t_cum = 4
 
                 while keep_flying:
                     
@@ -248,8 +249,6 @@ def perform_mision(trajectory, clockwise, starting_point):
 
                         print('Moving forward at velocity of ', final_velocity_x)
 
-                        
-
                         # PLANNING
                         print("checkpoint is ", counter_checkpoint)
                         print("trajectory[counter_checkpoint] is ", trajectory[counter_checkpoint])
@@ -277,7 +276,6 @@ def perform_mision(trajectory, clockwise, starting_point):
                                     elif direction == 'left':
                                         x_global_distance = float(x_map_size-round(multi_ranger.back*10))
                                         y_global_distance = float(y_map_size-round(multi_ranger.right*10))
-                                    #x_global_distance = float(x_map_size-round(multi_ranger.right*10))
                                 else:
                                     if direction == 'up':
                                         x_global_distance = float(multi_ranger.left*10)
@@ -288,8 +286,7 @@ def perform_mision(trajectory, clockwise, starting_point):
                                     elif direction == 'right':
                                         x_global_distance = float(multi_ranger.back*10)
                                         y_global_distance = float(y_map_size-round(multi_ranger.left*10))
-                                    #x_global_distance = float(multi_ranger.left*10)
-                                #y_global_distance = float(multi_ranger.back*10)
+
                                 initial_y = y_global_distance
                                 initial_x = x_global_distance
                                 print("direction is ", direction)
@@ -297,8 +294,6 @@ def perform_mision(trajectory, clockwise, starting_point):
                                 print("initial_x ", initial_x)
                                 initialize_coords = False
                                 initialized_x_y = False
-                                #if not counter_checkpoint == 1:
-                                #    checkpoint_reached = True
 
 
                             # LOCALIZATION
@@ -308,7 +303,8 @@ def perform_mision(trajectory, clockwise, starting_point):
                             #counter_time = 0
                             #t = time.time()
                             dt = t - t_0
-                            t_0 = t  
+                            t_0 = t
+                            t_cum += dt
                             #counter_time+=1
                             # Compute delta x: dx = vx.dt
                             if final_velocity_x < 0:
@@ -404,8 +400,10 @@ def perform_mision(trajectory, clockwise, starting_point):
 
                             # If we are going to start the navigation or we are 
                             # changing section, we inform the server.
-                            print('***Talking to the server...***')
-                            uas_traffic_conflict = uas_client.main(URI, current_section, height)
+                            if t_cum >= 2:
+                                print('***Talking to the server every {0} secs...***'.format(t_cum))
+                                uas_traffic_conflict = uas_client.main(URI, current_section, height)
+                                t_cum = 0
                             
                             # CHECK IF REACHED CHECKPOINT
                             if (direction == 'up' or direction == 'down') and abs(y_global_distance-trajectory[counter_checkpoint][1]/10) < 1:
