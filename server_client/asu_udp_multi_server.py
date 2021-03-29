@@ -73,8 +73,9 @@ class UDPServerMultiClient(udp_server.UDPServer):
 def main():
     ''' Create a UDP Server and handle multiple clients simultaneously '''
 
-    udp_server_multi_client = UDPServerMultiClient('127.0.0.1', 4444)
+    # udp_server_multi_client = UDPServerMultiClient('127.0.0.1', 4444)
     #udp_server_multi_client = UDPServerMultiClient('192.168.1.210', 50020)
+    udp_server_multi_client = UDPServerMultiClient('141.23.129.9', 50020)
     udp_server_multi_client.configure_server()
     udp_server_multi_client.wait_for_client()
 

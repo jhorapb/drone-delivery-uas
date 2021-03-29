@@ -93,8 +93,9 @@ def main(URI, section, height):
                 'E7E7E7E7E9': ','
                 }
 
-    #udp_client = UDPClient('192.168.1.210', 50020)
-    udp_client = UDPClient('127.0.0.1', 4444)
+    # udp_client = UDPClient('192.168.1.210', 50020)
+    # udp_client = UDPClient('127.0.0.1', 4444)
+    udp_client = UDPClient('141.23.129.9', 50020)
     udp_client.configure_client()
     
     ''' examples '''

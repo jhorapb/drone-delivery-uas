@@ -29,7 +29,7 @@ VELOCITY = 0.3 # (m/s) Define speed increment
 TOTAL_WIDTH = 2
 DISTANCE_TO_WALL = TOTAL_WIDTH / 4
 OTHER_TRAFFIC_DISTANCE = 0
-SLACK = 0.05
+SLACK = 0.15
 keep_flying = True # Define a Boolean that goes to False to stop the mission
 obstacle_front = False
 obstacle_side = False
@@ -53,7 +53,7 @@ def create_trajectory(starting_point, goal_point, CLOCKWISE):
         MISSIONS = {"A": A_point, "B":B_point, "C":C_point, "D":D_point}
 
     trajectory = [i for i in list(MISSIONS.values())[list(MISSIONS.keys()).index(starting_point):list(MISSIONS.keys()).index(goal_point)+1]]
-    print("trajectory is ", trajectory)
+    print("Trajectory is:\n", trajectory)
     return trajectory
 
 # Function that checks if the 'range' value is smaller than 0.2. 
@@ -64,7 +64,8 @@ def is_close_to_obstacle(range):
     if range is None:
         return False
     else:
-        return range > MIN_LIMIT and range < MAX_LIMIT
+        # return range > MIN_LIMIT and range < MAX_LIMIT
+        return range < MIN_LIMIT
 
 def inside_boundaries(occupancy_grid, y=0, x=0):
     grid_size = occupancy_grid.shape
@@ -122,9 +123,48 @@ def wall_following(traffic_flow_multi_ranger, velocity_wall):
 def stop_flying(up_ranger):
     global keep_flying
     # If object to close to the upward pointing ranging sensor land
-    if is_close_to_obstacle(up_ranger):
-        print('stop?')
+    if up_ranger <= 0.1:
+        print('Stop!')
         keep_flying = False
+
+def set_section(x_global_distance, y_global_distance, right_traffic, direction):
+    
+    global current_section
+
+    if right_traffic:
+        if x_global_distance>=Map.A[0][0]/10 and x_global_distance<=Map.A[2][0]/10 and y_global_distance>=Map.A[0][1]/10 and y_global_distance<=Map.B[1][1]/10:
+            current_section = "BA"
+        if x_global_distance>=Map.B[1][0]/10 and x_global_distance<=1/3*Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+            current_section = "CB3"
+        if x_global_distance>=1/3*Map.B[1][0]/10 and x_global_distance<=2/3*Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+            current_section = "CB2"
+        if x_global_distance>=2/3*Map.B[1][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+            if direction == "left":
+                current_section = "CB1"
+            else:
+                current_section = "BA"
+        if x_global_distance>=Map.C[0][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.D[0][1]/10 and y_global_distance<=Map.C[1][1]/10:
+            if direction == "up":
+                current_section = "DC"
+            else:
+                current_section = "CB3"
+    else:
+        if x_global_distance>=Map.A[0][0]/10 and x_global_distance<=Map.A[2][0]/10 and y_global_distance>=Map.A[0][1]/10 and y_global_distance<=Map.B[1][1]/10:
+            current_section = "AB"
+        if x_global_distance>=2/3*Map.B[1][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+            current_section = "BC3"
+        if x_global_distance>=1/3*Map.B[1][0]/10 and x_global_distance<=2/3*Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+            current_section = "BC2"
+        if x_global_distance>=Map.B[1][0]/10 and x_global_distance<=1/3*Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
+            if direction == "right":
+                current_section = "BC1"
+            else:
+                current_section = "AB"
+        if x_global_distance>=Map.C[0][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.D[0][1]/10 and y_global_distance<=Map.C[1][1]/10:
+            if direction == "down":
+                current_section = "CD"
+            else:
+                current_section = "BC3"
 
 def perform_mision(trajectory, clockwise, starting_point):
     
@@ -182,7 +222,6 @@ def perform_mision(trajectory, clockwise, starting_point):
                 counter = 0
                 # CHECK THIS
                 direction = 'up'
-                print('I am (FIRST) at [y, x]: (%s, %s)' % (y_global_distance, x_global_distance))
                 occupancy_grid[y_global_distance, x_global_distance] = 230
 
                 # ANIMATE OCCUPANCY GRID
@@ -198,9 +237,10 @@ def perform_mision(trajectory, clockwise, starting_point):
                 initialize_coords = True
                 checkpoint_reached = False
                 t_cum = 4
+                follow_wall = True
 
                 while keep_flying:
-                    
+    
                     Map.Update_map(occupancy_grid_upd, Occ_Map)
                     obstacle_front = False
                     obstacle_side = False
@@ -208,13 +248,11 @@ def perform_mision(trajectory, clockwise, starting_point):
                     velocity_x = 0.0
                     velocity_y = 0.0
                     velocity_wall = 0.0
-                    print('front: ', multi_ranger.front)
-                    print('back: ', multi_ranger.back)
+                    
                     # Define the multi ranger sensor for wall following
                     velocity_x, velocity_y = obstacle_avoidance(multi_ranger, velocity_x, velocity_y)
                     if right_traffic:
                         # Counterclockwise
-                        print('right traff')
                         traffic_flow_multi_ranger = multi_ranger.right
                         velocity_wall = -VELOCITY
                         OTHER_TRAFFIC_DISTANCE = 0
@@ -224,31 +262,30 @@ def perform_mision(trajectory, clockwise, starting_point):
                         velocity_wall = VELOCITY
                         OTHER_TRAFFIC_DISTANCE = DISTANCE_TO_WALL * 2
 
-                    print('mranger', traffic_flow_multi_ranger)
-
                     # If Clockwise, TOTAL_DISTANCE = 0.5 + 1 = 1.5
                     # If Counterclockwise, TOTAL_DISTANCE = 0.5 + 0 = 0.5
                     TOTAL_DISTANCE = DISTANCE_TO_WALL + OTHER_TRAFFIC_DISTANCE
 
                     # Check this. too far for CLOCKWISE
                     if traffic_flow_multi_ranger is not None:
-
-                        velocity_wall = wall_following(traffic_flow_multi_ranger, velocity_wall)
-                        stop_flying(multi_ranger.up)
-
-                        # Define x and y velocity
-                        final_velocity_x = velocity_x if obstacle_front else forward_velocity
-                        final_velocity_y = velocity_y if obstacle_side else velocity_wall
-
-                        if uas_traffic_conflict:
+                        if follow_wall:
+                            velocity_wall = wall_following(traffic_flow_multi_ranger, velocity_wall)
+                            # Define x and y velocity
+                            final_velocity_x = forward_velocity
+                            final_velocity_y = velocity_wall
+                        else:
+                            velocity_wall = 0
                             final_velocity_x = 0
                             final_velocity_y = 0
+
+                        if obstacle_front:
+                            final_velocity_x = velocity_x
+                        if obstacle_side:
+                            final_velocity_y = velocity_y
 
                         print('Moving forward at velocity of ', final_velocity_x)
 
                         # PLANNING
-                        print("checkpoint is ", counter_checkpoint)
-                        print("trajectory[counter_checkpoint] is ", trajectory[counter_checkpoint])
                         if counter_checkpoint < len(trajectory):
 
                             if initialize_coords:
@@ -286,21 +323,14 @@ def perform_mision(trajectory, clockwise, starting_point):
 
                                 initial_y = y_global_distance
                                 initial_x = x_global_distance
-                                print("direction is ", direction)
-                                print("initial_y ", initial_y)
-                                print("initial_x ", initial_x)
                                 initialize_coords = False
 
                             # LOCALIZATION
                             # Let's compute the current distance of the drone
-                            #if counter_time > 1:
                             t = time.time()
-                            #counter_time = 0
-                            #t = time.time()
                             dt = t - t_0
                             t_0 = t
                             t_cum += dt
-                            #counter_time+=1
                             # Compute delta x: dx = vx.dt
                             if final_velocity_x < 0:
                                 final_velocity_x = 0
@@ -308,17 +338,9 @@ def perform_mision(trajectory, clockwise, starting_point):
                             # Compute delta y: dy = vy.dt
                             dy = velocity_y * dt
                             x_drone_distance += dx*10
-                            y_drone_distance += dy*10
 
                             print('Distance in X meters:', x_drone_distance/10)
-                            # print('Distance in Y meters:', y_drone_distance)
-
-                            ## Correct rotation when shifting
-                            # y0_distance = traffic_flow_multi_ranger
-                            # x0_distance = multi_ranger.front
-                            # if x_distance > (x0_distance + dx):
                             
-                            print('->->-> Forward cells', x_drone_distance)
                             if right_traffic:
                                 if direction == 'up':
                                     y_global_distance = initial_y + x_drone_distance
@@ -347,51 +369,20 @@ def perform_mision(trajectory, clockwise, starting_point):
                                     y_global_distance = occupancy_grid.shape[0] - traffic_flow_multi_ranger*10
                             y_global_distance = round(y_global_distance)
                             x_global_distance = round(x_global_distance)
+                            
                             print('I am in the Y: %s and X: %s' % (y_global_distance, x_global_distance))
                             print('I am at [y, x]: (%s, %s)' % (y_global_distance, x_global_distance))
                             print("x_global_distance-trajectory[counter_checkpoint][0]/10 ", (x_global_distance-trajectory[counter_checkpoint][0]/10)**2)
                             print("y_global_distance-trajectory[counter_checkpoint][1]/10 ", (y_global_distance-trajectory[counter_checkpoint][1]/10)**2)
+                            
                             if inside_boundaries(occupancy_grid, y=y_global_distance, x=x_global_distance):
-                                occupancy_grid_upd[last_y, last_x] = 100
-                            else:
-                                print('fuck you')
-                                #keep_flying = False
+                                if occupancy_grid_upd[y_global_distance, x_global_distance] == 100:
+                                    occupancy_grid_upd[y_global_distance, x_global_distance] = 0
+                                else:
+                                    occupancy_grid_upd[y_global_distance, x_global_distance] = 100
 
-                            # SEND THE SECTION:
-                            if right_traffic:
-                                if x_global_distance>=Map.A[0][0]/10 and x_global_distance<=Map.A[2][0]/10 and y_global_distance>=Map.A[0][1]/10 and y_global_distance<=Map.B[1][1]/10:
-                                    current_section = "BA"
-                                if x_global_distance>=2/3*Map.B[1][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
-                                    current_section = "CB3"
-                                if x_global_distance>=1/3*Map.B[1][0]/10 and x_global_distance<=2/3*Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
-                                    current_section = "CB2"
-                                if x_global_distance>=Map.B[1][0]/10 and x_global_distance<=1/3*Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
-                                    if direction == "left":
-                                        current_section = "CB1"
-                                    else:
-                                        current_section = "BA"
-                                if x_global_distance>=Map.C[0][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.D[0][1]/10 and y_global_distance<=Map.C[1][1]/10:
-                                    if direction == "up":
-                                        current_section = "DC"
-                                    else:
-                                        current_section = "CB3"
-                            else:
-                                if x_global_distance>=Map.A[0][0]/10 and x_global_distance<=Map.A[2][0]/10 and y_global_distance>=Map.A[0][1]/10 and y_global_distance<=Map.B[1][1]/10:
-                                    current_section = "AB"
-                                if x_global_distance>=2/3*Map.B[1][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
-                                    current_section = "BC3"
-                                if x_global_distance>=1/3*Map.B[1][0]/10 and x_global_distance<=2/3*Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
-                                    current_section = "BC2"
-                                if x_global_distance>=Map.B[1][0]/10 and x_global_distance<=1/3*Map.C[2][0]/10 and y_global_distance>=Map.B[2][1]/10 and y_global_distance<=Map.B[3][1]/10:
-                                    if direction == "right":
-                                        current_section = "BC1"
-                                    else:
-                                        current_section = "AB"
-                                if x_global_distance>=Map.C[0][0]/10 and x_global_distance<=Map.C[2][0]/10 and y_global_distance>=Map.D[0][1]/10 and y_global_distance<=Map.C[1][1]/10:
-                                    if direction == "down":
-                                        current_section = "CD"
-                                    else:
-                                        current_section = "BC3"
+                            # Get the current section
+                            set_section(x_global_distance, y_global_distance, right_traffic, direction)
 
                             # If we are going to start the navigation or we are 
                             # changing section, we inform the server.
@@ -401,22 +392,13 @@ def perform_mision(trajectory, clockwise, starting_point):
                                 t_cum = 0
                             
                             # CHECK IF REACHED CHECKPOINT
-                            print("y_global_distance ", y_global_distance)
-                            print("trajectory[counter_checkpoint][1]/10 ", trajectory[counter_checkpoint][1]/10)
                             if (direction == 'up' or direction == 'down') and abs(y_global_distance-trajectory[counter_checkpoint][1]/10) < 4:
                                 print("multi_ranger.front is ", multi_ranger.front)
                                 measure_ranger = True
                             elif (direction == 'left' or direction == 'right') and abs(x_global_distance-trajectory[counter_checkpoint][0]/10) < 4:
                                 print('Reached the next checkpoint by mapping (Horizontal)')
                                 measure_ranger = True
-                                #if right_traffic:
-                                #    if multi_ranger.front <= 0.5:
-                                        
-                                #        checkpoint_reached = True
-                                #else:
-                                #    if multi_ranger.front <= 1.5:
-                                #        print('Reached the next checkpoint by mapping (Horizontal)')
-                                #        checkpoint_reached = True
+
                             if measure_ranger:
                                 if right_traffic:
                                     if multi_ranger.front <= 0.5:
@@ -438,28 +420,25 @@ def perform_mision(trajectory, clockwise, starting_point):
                                 y_drone_distance = 0
                                 initialize_coords = True
                                 checkpoint_reached = False
+                                follow_wall = False
+                                
                                 time.sleep(4)
                                 t_0 = time.time()
                                 measure_ranger = False
-                            elif not uas_traffic_conflict:
-                                print('current vel x: ', final_velocity_x)
-                                print('current vel y: ', final_velocity_y)
-                                print('IT GOES TO MOVE')
+                            elif uas_traffic_conflict:
+                                follow_wall = False
+                                if not obstacle_front:
+                                    final_velocity_x = 0
+                                if not obstacle_side:
+                                    final_velocity_y = 0
                                 motion_commander.start_linear_motion(final_velocity_x, final_velocity_y, 0)
                             else:
-                                motion_commander.start_linear_motion(0, 0, 0)
+                                follow_wall = True
+                                motion_commander.start_linear_motion(final_velocity_x, final_velocity_y, 0)
                             
-                            
-
-
+                            stop_flying(multi_ranger.up)
                         else:
                             keep_flying = False
-                        #print('keep_flying', keep_flying)
-                    print('traffic flow ranger:', traffic_flow_multi_ranger)
-                    
-                    #mapping.plot_grid(occupancy_grid)
-    
-    #mapping.plot_map(map_occupancy_grid)
             
 # Main program loop
 if __name__ == '__main__':
@@ -471,10 +450,10 @@ if __name__ == '__main__':
     # Fake client registrations to check conflict:
     URI2 = 'E7E7E7E7E7'
     URI3 = 'E7E7E7E7E8'
-    uas_client.main(URI2, 'BA', '0.3')
-    uas_client.main(URI3, 'BC1', '0.3')
+    uas_client.main(URI2, 'AB', '0.3')
+    uas_client.main(URI3, 'CB1', '0.3')
 
-    MISSIONS = [('A', 'C')] # ('A', 'C'), ('C', 'B'), ('B', 'D')
+    MISSIONS = [('B', 'A')] # ('A', 'C'), ('C', 'B'), ('B', 'D')
     for mission in MISSIONS:
         starting_point = mission[0]
         goal_point = mission[1]
