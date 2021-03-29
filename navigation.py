@@ -4,6 +4,7 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+import math
 
 import cflib.crtp
 from cflib.crazyflie import Crazyflie
@@ -25,11 +26,11 @@ logging.basicConfig(level=logging.ERROR)
 CLOCKWISE = True # True: left to right, False: right to left
 TRAFFIC_TYPE = CLOCKWISE
 right_traffic = not TRAFFIC_TYPE
-VELOCITY = 0.1 # (m/s) Define speed increment
+VELOCITY = 0.3 # (m/s) Define speed increment
 TOTAL_WIDTH = 2
 DISTANCE_TO_WALL = TOTAL_WIDTH / 4
 OTHER_TRAFFIC_DISTANCE = 0
-SLACK = 0.02
+SLACK = 0.05
 keep_flying = True # Define a Boolean that goes to False to stop the mission
 obstacle_front = False
 obstacle_side = False
@@ -66,7 +67,7 @@ def is_close_to_obstacle(range):
 
 def inside_boundaries(occupancy_grid, y=0, x=0):
     grid_size = occupancy_grid.shape
-    return y in range(grid_size[0]-10) and x in range(grid_size[1])
+    return y in range(grid_size[0]-3) and x in range(grid_size[1])
 
 
 def obstacle_avoidance(multi_ranger, velocity_x, velocity_y):
@@ -142,9 +143,9 @@ def perform_mision(trajectory):
     # y_global_distance, x_global_distance = 0, 20
     initialized_x_y = True
 
-    counter_checkpoint = 0
-    y_check = trajectory[0][0]
-    x_check = trajectory[0][1]
+    counter_checkpoint = 1
+    y_check = trajectory[0][1]
+    x_check = trajectory[0][0]
 
     # Create a synchronous connection with the UAS, UAS is now known as 'scf'
     with SyncCrazyflie(URI) as scf:
@@ -167,15 +168,17 @@ def perform_mision(trajectory):
             with Multiranger(scf) as multi_ranger:
                 
                 # Continue performing the loop while 'keep_flying' Booelan is True
-                forward_velocity = 0.2
+                forward_velocity = 0.3
                 
                 initial_y, initial_x = 15, 20 # Initial position in the map (y, x)
                 y_global_distance, x_global_distance = initial_y, initial_x # Current position in the map (y, x)
                 y0_drone_distance, y_drone_distance = 0, 0 # How much the drone is moving in Y direction
                 x0_drone_distance, x_drone_distance = 0, 0 # How much the drone is moving in X direction
+                y_drone_distance_temp, x_drone_distance_temp = 0, 0
                 dy, dx, dt = 0, 0, 0
                 t_0 = time.time()
                 counter = 0
+                # CHECK THIS
                 direction = 'up'
                 print('I am (FIRST) at [y, x]: (%s, %s)' % (y_global_distance, x_global_distance))
                 occupancy_grid[y_global_distance, x_global_distance] = 230
@@ -239,89 +242,22 @@ def perform_mision(trajectory):
                         
 
                         # PLANNING
-                        
+                        print("checkpoint is ", counter_checkpoint)
+                        print("trajectory[counter_checkpoint] is ", trajectory[counter_checkpoint])
                         if counter_checkpoint < len(trajectory):
-                            iter_y_check = trajectory[counter_checkpoint][0]
-                            iter_x_check = trajectory[counter_checkpoint][1]
-                            # Check if direction is up or down
-                            if y_check != iter_y_check:
-                                direction = 'up' if iter_y_check > y_check else 'down'
-                            # Check if direction is left or right
-                            if x_check != iter_x_check:
-                                direction = 'right' if iter_x_check > x_check else 'left'
-                            y_check = iter_y_check
-                            x_check = iter_x_check
 
-                            # LOCALIZATION
-                            # Let's compute the current distance of the drone
-                            t = time.time()
-                            dt = t - t_0
-                            t_0 = t
-                            # Compute delta x: dx = vx.dt
-                            if final_velocity_x < 0:
-                                final_velocity_x = 0
-                            dx = final_velocity_x * dt
-                            # Compute delta y: dy = vy.dt
-                            dy = velocity_y * dt
-                            x_drone_distance += dx*10
-                            y_drone_distance += dy*10
-                            print('Distance in X meters:', x_drone_distance)
-                            # print('Distance in Y meters:', y_drone_distance)
-
-                            ## Correct rotation when shifting
-                            # y0_distance = traffic_flow_multi_ranger
-                            # x0_distance = multi_ranger.front
-                            # if x_distance > (x0_distance + dx):
-
-                            # For 0.1 seconds
-                            # to try different frequency
-                            time.sleep(0.1)
-                            # Check this. it goes too fast
-                            print('->->-> Forward cells', x_drone_distance)
-                            if direction == 'up':
-                                y_global_distance = initial_y + x_drone_distance
-                            elif direction == 'down':
-                                y_global_distance = initial_y - x_drone_distance
-                            elif direction == 'left':
-                                x_global_distance = initial_x - x_drone_distance
-                            elif direction == 'right':
-                                x_global_distance = initial_x + x_drone_distance
-                            y_global_distance = round(y_global_distance)
-                            x_global_distance = round(x_global_distance)
-                            print('I am in the Y: %s and X: %s' % (y_global_distance, x_global_distance))
-                            print('I am at [y, x]: (%s, %s)' % (y_global_distance, x_global_distance))
-                            if inside_boundaries(occupancy_grid, y=y_global_distance, x=x_global_distance):
-                                occupancy_grid[last_y, last_x] = 100
-                            else:
-                                print('fuck you')
-                                keep_flying = False
-
-                            if ((x_global_distance-trajectory[counter_checkpoint][0]/10)**2 + (y_global_distance-trajectory[counter_checkpoint][1]/10)**2 < 1):
-                                print('Reached the next checkpoint by mapping')
-                                checkpoint_reached = True
-                            elif (x_global_distance-trajectory[counter_checkpoint][0]/10)**2 + (y_global_distance-trajectory[counter_checkpoint][1]/10)**2 < 3:
-                                if obstacle_front:
-                                    checkpoint_reached = True
-                                    print('Reached the next checkpoint by ranger')
-                                else:
-                                    print('current vel x: ', final_velocity_x)
-                                    print('current vel y: ', final_velocity_y)
-                                    motion_commander.start_linear_motion(final_velocity_x, final_velocity_y, 0)
-                            else:
-                                print('current vel x: ', final_velocity_x)
-                                print('current vel y: ', final_velocity_y)
-                                motion_commander.start_linear_motion(final_velocity_x, final_velocity_y, 0)
-                            if checkpoint_reached:
-                                if right_traffic:
-                                    motion_commander.turn_left(90)
-                                else:
-                                    motion_commander.turn_right(90)
-                                counter_checkpoint += 1
-                                x_drone_distance = 0
-                                y_drone_distance = 0
-                                initialize_coords = True
-                                time.sleep(2)
                             if initialize_coords:
+                                # SET DIRECTION
+                                iter_y_check = trajectory[counter_checkpoint][1]
+                                iter_x_check = trajectory[counter_checkpoint][0]
+                                # Check if direction is up or down
+                                if y_check != iter_y_check:
+                                    direction = 'up' if iter_y_check > y_check else 'down'
+                                # Check if direction is left or right
+                                elif x_check != iter_x_check:
+                                    direction = 'right' if iter_x_check > x_check else 'left'
+                                y_check = iter_y_check
+                                x_check = iter_x_check
                                 if right_traffic:
                                     if direction == 'up':
                                         x_global_distance = float(occupancy_grid.shape[1]-round(multi_ranger.right*10))
@@ -347,7 +283,145 @@ def perform_mision(trajectory):
                                 #y_global_distance = float(multi_ranger.back*10)
                                 initial_y = y_global_distance
                                 initial_x = x_global_distance
+                                print("initial_y ", initial_y)
+                                print("initial_x ", initial_x)
                                 initialize_coords = False
+                                #if not counter_checkpoint == 1:
+                                #    checkpoint_reached = True
+
+
+                            # LOCALIZATION
+                            # Let's compute the current distance of the drone
+                            t = time.time()
+                            dt = t - t_0
+                            t_0 = t                         
+                            # Compute delta x: dx = vx.dt
+                            if final_velocity_x < 0:
+                                final_velocity_x = 0
+                            dx = math.sqrt(final_velocity_x**2 + final_velocity_y**2) * math.cos(math.atan(final_velocity_y/final_velocity_x)) * dt
+                            # Compute delta y: dy = vy.dt
+                            dy = velocity_y * dt
+                            x_drone_distance += dx*10
+                            y_drone_distance += dy*10
+                            #if x_drone_distance_temp > 0.2:
+                            #    x_drone_distance = x_drone_distance_temp
+                            #    x_drone_distance_temp = 0
+                            #else:
+                            #    x_drone_distance = 0
+                            #if y_drone_distance_temp > 0.2:
+                            #    y_drone_distance = y_drone_distance_temp
+                            #    y_drone_distance_temp = 0
+                            #else:
+                            #    y_drone_distance = 0
+                            print('Distance in X meters:', x_drone_distance/10)
+                            # print('Distance in Y meters:', y_drone_distance)
+
+                            ## Correct rotation when shifting
+                            # y0_distance = traffic_flow_multi_ranger
+                            # x0_distance = multi_ranger.front
+                            # if x_distance > (x0_distance + dx):
+
+                            # For 0.1 seconds
+                            # to try different frequency
+                            #time.sleep(0.1)
+                            # Check this. it goes too fast
+                            print('->->-> Forward cells', x_drone_distance)
+                            if right_traffic:
+                                if direction == 'up':
+                                    y_global_distance = initial_y + x_drone_distance
+                                    x_global_distance = occupancy_grid.shape[1] - traffic_flow_multi_ranger*10
+                                elif direction == 'down':
+                                    y_global_distance = initial_y - x_drone_distance
+                                    x_global_distance = traffic_flow_multi_ranger*10
+                                elif direction == 'left':
+                                    x_global_distance = initial_x - x_drone_distance
+                                    y_global_distance = occupancy_grid.shape[0] - traffic_flow_multi_ranger*10
+                                elif direction == 'right':
+                                    x_global_distance = initial_x + x_drone_distance
+                                    y_global_distance = occupancy_grid.shape[0] - traffic_flow_multi_ranger*10
+                            else:
+                                if direction == 'up':
+                                    y_global_distance = initial_y + x_drone_distance
+                                    x_global_distance = traffic_flow_multi_ranger*10
+                                elif direction == 'down':
+                                    y_global_distance = initial_y - x_drone_distance
+                                    x_global_distance = occupancy_grid.shape[1] - traffic_flow_multi_ranger*10
+                                elif direction == 'left':
+                                    x_global_distance = initial_x - x_drone_distance
+                                    y_global_distance = occupancy_grid.shape[0] - traffic_flow_multi_ranger*10
+                                elif direction == 'right':
+                                    x_global_distance = initial_x + x_drone_distance
+                                    y_global_distance = occupancy_grid.shape[0] - traffic_flow_multi_ranger*10
+                            y_global_distance = round(y_global_distance)
+                            x_global_distance = round(x_global_distance)
+                            print('I am in the Y: %s and X: %s' % (y_global_distance, x_global_distance))
+                            print('I am at [y, x]: (%s, %s)' % (y_global_distance, x_global_distance))
+                            print("x_global_distance-trajectory[counter_checkpoint][0]/10 ", (x_global_distance-trajectory[counter_checkpoint][0]/10)**2)
+                            print("y_global_distance-trajectory[counter_checkpoint][1]/10 ", (y_global_distance-trajectory[counter_checkpoint][1]/10)**2)
+                            if inside_boundaries(occupancy_grid, y=y_global_distance, x=x_global_distance):
+                                occupancy_grid[last_y, last_x] = 100
+                            else:
+                                print('fuck you')
+                                keep_flying = False
+
+                            # SEND THE SECTION:
+                            if right_traffic:
+                                if x_global_distance>=Map.A[0][0]*10 and x_global_distance<=Map.A[2][0]*10 and y_global_distance>=Map.A[1][1] and y_global_distance<=Map.B[0][1]:
+                                    section = "BA"
+                                if x_global_distance>=Map.B[2][0]*10 and x_global_distance<=Map.C[0][0]*10 and y_global_distance>=Map.B[2][1] and y_global_distance<=Map.B[3][1]:
+                                    section = "CB"
+                                if x_global_distance>=Map.C[0][0]*10 and x_global_distance<=Map.C[2][0]*10 and y_global_distance>=Map.D[1][1] and y_global_distance<=Map.C[0][1]:
+                                    section = "DC"
+                            else:
+                                if x_global_distance>=Map.A[0][0]*10 and x_global_distance<=Map.A[2][0]*10 and y_global_distance>=Map.A[1][1] and y_global_distance<=Map.B[0][1]:
+                                    section = "AB"
+                                if x_global_distance>=Map.B[2][0]*10 and x_global_distance<=Map.C[0][0]*10 and y_global_distance>=Map.B[2][1] and y_global_distance<=Map.B[3][1]:
+                                    section = "BC"
+                                if x_global_distance>=Map.C[0][0]*10 and x_global_distance<=Map.C[2][0]*10 and y_global_distance>=Map.D[1][1] and y_global_distance<=Map.C[0][1]:
+                                    section = "CD"
+
+                            # CHECK IF REACHED CHECKPOINT
+                            if (direction == 'up' or direction == 'down') and abs(y_global_distance-trajectory[counter_checkpoint][1]/10) < 1:
+                                print('Reached the next checkpoint by mapping')
+                                checkpoint_reached = True
+                            elif (direction == 'left' or direction == 'right') and abs(x_global_distance-trajectory[counter_checkpoint][0]/10) <1:
+                                print('Reached the next checkpoint by mapping')
+                                checkpoint_reached = True
+                            #if ((x_global_distance-trajectory[counter_checkpoint][0]/10)**2 + (y_global_distance-trajectory[counter_checkpoint][1]/10)**2 < 1):
+                            #    print('Reached the next checkpoint by mapping')
+                            #    checkpoint_reached = True
+                            #elif (x_global_distance-trajectory[counter_checkpoint][0]/10)**2 + (y_global_distance-trajectory[counter_checkpoint][1]/10)**2 < 4:
+                            #    if obstacle_front:
+                            #        checkpoint_reached = True
+                            #        print('Reached the next checkpoint by ranger')
+                            #    else:
+                            #        print('current vel x: ', final_velocity_x)
+                            #        print('current vel y: ', final_velocity_y)
+                            #        motion_commander.start_linear_motion(final_velocity_x, final_velocity_y, 0)
+                            
+
+                            if checkpoint_reached:
+                                if right_traffic:
+                                    print('the turn left')
+                                    motion_commander.turn_left(90)
+                                else:
+                                    print('the turn right')
+                                    motion_commander.turn_right(90)
+                                counter_checkpoint += 1
+                                x_drone_distance = 0
+                                y_drone_distance = 0
+                                initialize_coords = True
+                                checkpoint_reached = False
+                                time.sleep(2)
+                                t_0 = time.time()
+                            else:
+                                print('current vel x: ', final_velocity_x)
+                                print('current vel y: ', final_velocity_y)
+                                motion_commander.start_linear_motion(final_velocity_x, final_velocity_y, 0)
+                            
+                            
+
+
                         else:
                             keep_flying = False
                         #print('keep_flying', keep_flying)
