@@ -47,8 +47,8 @@ class UpdateMap:
         return round(coord/self.grid_size)
 
     def initialize_map(self, occupancy_grid):
-        self.x_size = 1200
-        self.y_size = 800
+        self.x_size = 1160
+        self.y_size = 770
         occupancy_grid = np.zeros((self.coord2cell(self.y_size), self.coord2cell(self.x_size)))
         ## Create horizontal lines
         for j in range(self.coord2cell(self.y_size)):
