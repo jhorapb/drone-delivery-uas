@@ -73,10 +73,12 @@ def check_for_conflict(database, resp, uri, sector):
         
         if (temp[count+1] == sector) and (temp[count] != uri):
             print('Conflict found with UAS '  + temp[count] + '\n')
+            return True
       
         count = count + 3
+    return False
         
-def main():
+def main(URI, section, height):
     ''' Create a UDP Client, send message to a UDP Server and receive reply. '''
 
     database = {
@@ -96,35 +98,9 @@ def main():
     udp_client.configure_client()
     
     ''' examples '''
-    resp = udp_client.interact_with_server('$POS,E7E7E7E7E5,AB,0.3')
-    check_for_conflict(database, resp, 'E7E7E7E7E5', 'AB')
-    time.sleep(1)
-    
-    resp = udp_client.interact_with_server('$POS,E7E7E7E7E5,AB,0.5')
-    check_for_conflict(database, resp, 'E7E7E7E7E5', 'AB')
-    time.sleep(1)
-    
-    resp = udp_client.interact_with_server('$POS,E7E7E7E7E5,BC1,0.5')
-    check_for_conflict(database, resp, 'E7E7E7E7E5', 'BC1')
-    time.sleep(1)
-    
-    resp = udp_client.interact_with_server('$POS,E7E7E7E7E5,BC1,0.3')
-    check_for_conflict(database, resp, 'E7E7E7E7E5', 'BC1')
-    time.sleep(1)
-    
-    resp = udp_client.interact_with_server('$POS,E7E7E7E7E5,BC2,0.3')
-    check_for_conflict(database, resp, 'E7E7E7E7E5', 'BC2')
-    time.sleep(1)
-    
-    resp = udp_client.interact_with_server('$POS,E7E7E7E7E6,BC2,0.3')
-    check_for_conflict(database, resp, 'E7E7E7E7E5', 'BC2')
-    time.sleep(1)
-    
-    resp = udp_client.interact_with_server('$POS,E7E7E7E7E5,C,0.3')
-    check_for_conflict(database, resp, 'E7E7E7E7E5', 'C')
+    resp = udp_client.interact_with_server('$POS,%s,%s,%s' % (URI, section, height))
+    conflict = check_for_conflict(database, resp, URI, section)
+    # time.sleep(1)
 
-    
     udp_client.close_client()
-
-if __name__ == '__main__':
-    main()
+    return conflict

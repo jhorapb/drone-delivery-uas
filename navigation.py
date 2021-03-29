@@ -15,6 +15,7 @@ from cflib.utils.multiranger import Multiranger
 # Custom modules
 #import initial_map as mapping
 import update_map_2 as mapping
+import server_client.asu_udp_client2 as uas_client
 
 # Unique radio link identifier between computer and Craziflie UAS
 URI = 'radio://0/80/2M/E7E7E7E7E9'
@@ -36,6 +37,7 @@ obstacle_front = False
 obstacle_side = False
 TOTAL_DISTANCE = 0
 Map = mapping.UpdateMap()
+current_section = ''
 
 def create_trajectory(starting_point, goal_point):
     global right_traffic
@@ -136,6 +138,8 @@ def perform_mision(trajectory):
     global obstacle_side
     global TOTAL_DISTANCE
     global counter_checkpoint
+    global URI
+    global current_section
 
     occupancy_grid = np.zeros((80, 120))
     #occupancy_grid = Map.initialize_map(occupancy_grid)
@@ -146,21 +150,20 @@ def perform_mision(trajectory):
     counter_checkpoint = 1
     y_check = trajectory[0][1]
     x_check = trajectory[0][0]
+    uas_traffic_conflict = False
 
     # Create a synchronous connection with the UAS, UAS is now known as 'scf'
     with SyncCrazyflie(URI) as scf:
-        
-        # Create a motion commandor (tools that let's you change the motion of the UAS) for 'scf'
-        with MotionCommander(scf, 0.2) as motion_commander:
+        height = 0.2
+        # Create a motion commandor (tool that let's you change the motion of the UAS) for 'scf'
+        with MotionCommander(scf, height) as motion_commander:
             
             # Take off
             print('Taking off! -by default up to 0.3m-')
             
-            # print('Moving up 1.0m at 0.2m/s')
-            # motion_commander.up(1.0, 0.2)
-            
             print('TRAFFIC TYPE: ', TRAFFIC_TYPE, 
                 'Clockwise' if TRAFFIC_TYPE else 'Counterclockwise')
+            
             # Wait a bit (i.e. 5 seconds) before doing the next step
             time.sleep(5)
 
@@ -237,6 +240,10 @@ def perform_mision(trajectory):
                         final_velocity_x = velocity_x if obstacle_front else forward_velocity
                         final_velocity_y = velocity_y if obstacle_side else velocity_wall
 
+                        if uas_traffic_conflict:
+                            final_velocity_x = 0
+                            final_velocity_y = 0
+
                         print('Moving forward at velocity of ', final_velocity_x)
 
                         
@@ -303,16 +310,7 @@ def perform_mision(trajectory):
                             dy = velocity_y * dt
                             x_drone_distance += dx*10
                             y_drone_distance += dy*10
-                            #if x_drone_distance_temp > 0.2:
-                            #    x_drone_distance = x_drone_distance_temp
-                            #    x_drone_distance_temp = 0
-                            #else:
-                            #    x_drone_distance = 0
-                            #if y_drone_distance_temp > 0.2:
-                            #    y_drone_distance = y_drone_distance_temp
-                            #    y_drone_distance_temp = 0
-                            #else:
-                            #    y_drone_distance = 0
+
                             print('Distance in X meters:', x_drone_distance/10)
                             # print('Distance in Y meters:', y_drone_distance)
 
@@ -320,11 +318,7 @@ def perform_mision(trajectory):
                             # y0_distance = traffic_flow_multi_ranger
                             # x0_distance = multi_ranger.front
                             # if x_distance > (x0_distance + dx):
-
-                            # For 0.1 seconds
-                            # to try different frequency
-                            #time.sleep(0.1)
-                            # Check this. it goes too fast
+                            
                             print('->->-> Forward cells', x_drone_distance)
                             if right_traffic:
                                 if direction == 'up':
@@ -366,19 +360,31 @@ def perform_mision(trajectory):
 
                             # SEND THE SECTION:
                             if right_traffic:
-                                if x_global_distance>=Map.A[0][0]*10 and x_global_distance<=Map.A[2][0]*10 and y_global_distance>=Map.A[1][1] and y_global_distance<=Map.B[0][1]:
-                                    section = "BA"
-                                if x_global_distance>=Map.B[2][0]*10 and x_global_distance<=Map.C[0][0]*10 and y_global_distance>=Map.B[2][1] and y_global_distance<=Map.B[3][1]:
-                                    section = "CB"
-                                if x_global_distance>=Map.C[0][0]*10 and x_global_distance<=Map.C[2][0]*10 and y_global_distance>=Map.D[1][1] and y_global_distance<=Map.C[0][1]:
-                                    section = "DC"
+                                if x_global_distance >= Map.A[0][0]*10 and x_global_distance <= Map.A[2][0]*10 and 
+                                    y_global_distance >= Map.A[1][1] and y_global_distance <= Map.B[0][1]:
+                                    current_section = "BA"
+                                if x_global_distance >= Map.B[2][0]*10 and x_global_distance <= Map.C[0][0]*10 and 
+                                    y_global_distance >= Map.B[2][1] and y_global_distance <= Map.B[3][1]:
+                                    current_section = "CB"
+                                if x_global_distance >= Map.C[0][0]*10 and x_global_distance <= Map.C[2][0]*10 and 
+                                    y_global_distance >= Map.D[1][1] and y_global_distance <= Map.C[0][1]:
+                                    current_section = "DC"
                             else:
-                                if x_global_distance>=Map.A[0][0]*10 and x_global_distance<=Map.A[2][0]*10 and y_global_distance>=Map.A[1][1] and y_global_distance<=Map.B[0][1]:
-                                    section = "AB"
-                                if x_global_distance>=Map.B[2][0]*10 and x_global_distance<=Map.C[0][0]*10 and y_global_distance>=Map.B[2][1] and y_global_distance<=Map.B[3][1]:
-                                    section = "BC"
-                                if x_global_distance>=Map.C[0][0]*10 and x_global_distance<=Map.C[2][0]*10 and y_global_distance>=Map.D[1][1] and y_global_distance<=Map.C[0][1]:
-                                    section = "CD"
+                                if x_global_distance >= Map.A[0][0]*10 and x_global_distance <= Map.A[2][0]*10 and 
+                                    y_global_distance >= Map.A[1][1] and y_global_distance <= Map.B[0][1]:
+                                    current_section = "AB"
+                                if x_global_distance >= Map.B[2][0]*10 and x_global_distance <= Map.C[0][0]*10 and 
+                                    y_global_distance >= Map.B[2][1] and y_global_distance <= Map.B[3][1]:
+                                    current_section = "BC"
+                                if x_global_distance >= Map.C[0][0]*10 and x_global_distance <= Map.C[2][0]*10 and 
+                                    y_global_distance >= Map.D[1][1] and y_global_distance <= Map.C[0][1]:
+                                    current_section = "CD"
+
+                            # If we are going to start the navigation or we are 
+                            # changing section, we inform the server.
+                            # if current_section != new_section:
+                            print('***Talking to the server...***')
+                            uas_traffic_conflict = uas_client.main(URI, current_section, height)
 
                             # CHECK IF REACHED CHECKPOINT
                             if (direction == 'up' or direction == 'down') and abs(y_global_distance-trajectory[counter_checkpoint][1]/10) < 1:
@@ -414,7 +420,7 @@ def perform_mision(trajectory):
                                 checkpoint_reached = False
                                 time.sleep(2)
                                 t_0 = time.time()
-                            else:
+                            elif not uas_traffic_conflict:
                                 print('current vel x: ', final_velocity_x)
                                 print('current vel y: ', final_velocity_y)
                                 motion_commander.start_linear_motion(final_velocity_x, final_velocity_y, 0)
