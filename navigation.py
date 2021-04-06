@@ -59,12 +59,10 @@ def create_trajectory(starting_point, goal_point, CLOCKWISE):
 # Function that checks if the 'range' value is smaller than 0.2. 
 # It return a Boolean True is so, and False if not
 def is_close_to_obstacle(range):
-    MAX_LIMIT = 0.4  # m
     MIN_LIMIT = 0.2 # m
     if range is None:
         return False
     else:
-        # return range > MIN_LIMIT and range < MAX_LIMIT
         return range < MIN_LIMIT
 
 def inside_boundaries(occupancy_grid, y=0, x=0):
@@ -183,7 +181,6 @@ def perform_mision(trajectory, clockwise, starting_point):
     TRAFFIC_TYPE = clockwise
     right_traffic = not TRAFFIC_TYPE
     occupancy_grid = np.zeros((78, 116))
-    last_y, last_x = 0, 0
     counter_checkpoint = 1
     y_check = trajectory[0][1]
     x_check = trajectory[0][0]
@@ -214,14 +211,11 @@ def perform_mision(trajectory, clockwise, starting_point):
                 
                 initial_y, initial_x = 15, 20 # Initial position in the map (y, x)
                 y_global_distance, x_global_distance = initial_y, initial_x # Current position in the map (y, x)
-                y0_drone_distance, y_drone_distance = 0, 0 # How much the drone is moving in Y direction
-                x0_drone_distance, x_drone_distance = 0, 0 # How much the drone is moving in X direction
-                y_drone_distance_temp, x_drone_distance_temp = 0, 0
-                dy, dx, dt = 0, 0, 0
+                x_drone_distance = 0 # How much the drone is moving in X direction
+                dx, dt = 0, 0
                 t_0 = time.time()
-                counter = 0
-                # CHECK THIS
-                direction = 'up'
+                
+                direction = ''
                 occupancy_grid[y_global_distance, x_global_distance] = 230
 
                 # ANIMATE OCCUPANCY GRID
@@ -334,9 +328,7 @@ def perform_mision(trajectory, clockwise, starting_point):
                             # Compute delta x: dx = vx.dt
                             if final_velocity_x < 0:
                                 final_velocity_x = 0
-                            dx = math.sqrt(final_velocity_x**2 + final_velocity_y**2) * math.cos(math.atan2(final_velocity_y,final_velocity_x)) * dt
-                            # Compute delta y: dy = vy.dt
-                            dy = velocity_y * dt
+                            dx = math.sqrt(final_velocity_x**2 + final_velocity_y**2) * math.cos(math.atan2(final_velocity_y, final_velocity_x)) * dt
                             x_drone_distance += dx*10
 
                             print('Distance in X meters:', x_drone_distance/10)
@@ -417,7 +409,6 @@ def perform_mision(trajectory, clockwise, starting_point):
                                     motion_commander.turn_right(90)
                                 counter_checkpoint += 1
                                 x_drone_distance = 0
-                                y_drone_distance = 0
                                 initialize_coords = True
                                 checkpoint_reached = False
                                 follow_wall = False
@@ -436,7 +427,7 @@ def perform_mision(trajectory, clockwise, starting_point):
                                 follow_wall = True
                                 motion_commander.start_linear_motion(final_velocity_x, final_velocity_y, 0)
                             
-                            stop_flying(multi_ranger.up)
+                            # stop_flying(multi_ranger.up)
                         else:
                             keep_flying = False
             
@@ -450,10 +441,10 @@ if __name__ == '__main__':
     # Fake client registrations to check conflict:
     URI2 = 'E7E7E7E7E7'
     URI3 = 'E7E7E7E7E8'
-    uas_client.main(URI2, 'AB', '0.3')
-    uas_client.main(URI3, 'CB1', '0.3')
+    # uas_client.main(URI2, 'BA', '0.3')
+    # uas_client.main(URI3, 'CB1', '0.3')
 
-    MISSIONS = [('B', 'A')] # ('A', 'C'), ('C', 'B'), ('B', 'D')
+    MISSIONS = [('A', 'C')] # ('A', 'C'), ('C', 'B'), ('B', 'D')
     for mission in MISSIONS:
         starting_point = mission[0]
         goal_point = mission[1]

@@ -93,15 +93,11 @@ def main(URI, section, height):
                 'E7E7E7E7E9': ','
                 }
 
-    # udp_client = UDPClient('192.168.1.210', 50020)
-    # udp_client = UDPClient('127.0.0.1', 4444)
-    udp_client = UDPClient('141.23.129.9', 50020)
+    udp_client = UDPClient('192.168.43.165', 50020)
     udp_client.configure_client()
     
-    ''' examples '''
     resp = udp_client.interact_with_server('$POS,%s,%s,%s' % (URI, section, height))
     conflict = check_for_conflict(database, resp, URI, section)
-    # time.sleep(1)
 
     udp_client.close_client()
     return conflict
